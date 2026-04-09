@@ -1,21 +1,20 @@
 import * as admin from "firebase-admin";
-import {beforeUserCreated} from "firebase-functions/v2/identity";
+import {auth} from "firebase-functions/v1";
+import {FieldValue} from "firebase-admin/firestore";
+
 admin.initializeApp();
 
 const db = admin.firestore();
 
 // crear usuario
-export const onUserCreated = beforeUserCreated(async (event) => {
-  const user = event.data;
-  if (!user) return;
-
+export const onUserCreated = auth.user().onCreate(async (user) => {
   await db.collection("users").doc(user.uid).set({
     uid: user.uid,
     username: user.displayName ?? "",
     email: user.email ?? "",
     avatarUrl: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    lastSeen: FieldValue.serverTimestamp(),
     isOnline: false,
     fcmTokens: [],
   });
