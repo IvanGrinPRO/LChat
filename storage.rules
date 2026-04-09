@@ -1,12 +1,21 @@
 rules_version = '2';
 
-// Craft rules based on data in your Firestore database
-// allow write: if firestore.get(
-//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if false;
+
+    // avatares
+    match /avatars/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // archivos de chat
+    match /chats/{chatId}/{allPaths=**} {
+      allow read: if request.auth != null &&
+        firestore.get(/databases/(default)/documents/chats/$(chatId)).data.members.hasAny([request.auth.uid]);
+      allow write: if request.auth != null &&
+        firestore.get(/databases/(default)/documents/chats/$(chatId)).data.members.hasAny([request.auth.uid]);
+    }
+
   }
 }
