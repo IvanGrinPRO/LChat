@@ -9,7 +9,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Esquema oscuro — la app es dark-only por diseño
 private val LChatColorScheme = darkColorScheme(
     primary = NeuAccent,
     onPrimary = TextOnAccent,

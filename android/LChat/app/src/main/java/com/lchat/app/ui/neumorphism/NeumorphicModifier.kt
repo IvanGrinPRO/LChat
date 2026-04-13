@@ -18,10 +18,9 @@ import com.lchat.app.ui.theme.NeuShadowLight
 import com.lchat.app.ui.theme.NeuSurface
 import androidx.compose.ui.graphics.nativeCanvas
 
-// Estilo de la superficie neumórfica
 enum class NeumorphicStyle {
-    Raised,    // botón sin presionar — sobresale
-    Pressed    // input o botón presionado — hundido
+    Raised,
+    Pressed
 }
 
 fun Modifier.neumorphic(
@@ -38,12 +37,10 @@ fun Modifier.neumorphic(
 
     drawBehind {
         drawIntoCanvas { canvas ->
-            // Convertimos la shape en un outline para clipear
             val outline = shape.createOutline(size, layoutDirection, this)
 
             when (style) {
                 NeumorphicStyle.Raised -> {
-                    // Sombra oscura abajo-derecha
                     drawShadowLayer(
                         canvas = canvas.nativeCanvas,
                         size = size,
@@ -52,7 +49,6 @@ fun Modifier.neumorphic(
                         color = darkShadowColor,
                         outline = outline
                     )
-                    // Sombra clara arriba-izquierda
                     drawShadowLayer(
                         canvas = canvas.nativeCanvas,
                         size = size,
@@ -63,7 +59,6 @@ fun Modifier.neumorphic(
                     )
                 }
                 NeumorphicStyle.Pressed -> {
-                    // Hundido: las sombras van por dentro, simulamos con sombras invertidas
                     drawShadowLayer(
                         canvas = canvas.nativeCanvas,
                         size = size,
@@ -112,7 +107,6 @@ fun Modifier.neumorphic(
         }
 }
 
-// Helper: dibuja una sombra borrosa con offset
 private fun drawShadowLayer(
     canvas: android.graphics.Canvas,
     size: Size,
