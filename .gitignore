@@ -26,6 +26,7 @@ pids
 *.pid
 *.seed
 *.pid.lock
+**/google-services.json
 
 # ─── Android ───
 *.iml
