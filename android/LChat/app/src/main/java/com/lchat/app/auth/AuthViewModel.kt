@@ -18,7 +18,7 @@ class AuthViewModel(
         get() = repository.currentUser != null
 
     fun signIn(email: String, password: String) {
-        if (!validate(email, password)) return
+        if (!validateLogin(email, password)) return
 
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
@@ -28,13 +28,19 @@ class AuthViewModel(
         }
     }
 
-    fun signUp(email: String, password: String) {
-        if (!validate(email, password)) return
+    fun signUp(username: String, email: String, password: String) {
+        if (!validateRegister(username, email, password)) return
 
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
             repository.signUp(email.trim(), password)
-                .onSuccess { _uiState.value = AuthUiState.Success }
+                .onSuccess { user ->
+                    try {
+                        repository.updateUsername(user.uid, username.trim())
+                    } catch (_: Exception) {
+                    }
+                    _uiState.value = AuthUiState.Success
+                }
                 .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Error desconocido") }
         }
     }
@@ -43,15 +49,27 @@ class AuthViewModel(
         _uiState.value = AuthUiState.Idle
     }
 
-    private fun validate(email: String, password: String): Boolean {
+    private fun validateLogin(email: String, password: String): Boolean {
         if (email.isBlank() || !email.contains("@")) {
-            _uiState.value = AuthUiState.Error("Email no válido")
+            _uiState.value = AuthUiState.Error("Email no valido")
             return false
         }
         if (password.length < 6) {
-            _uiState.value = AuthUiState.Error("La contraseña debe tener al menos 6 caracteres")
+            _uiState.value = AuthUiState.Error("Min. 6 caracteres")
             return false
         }
         return true
+    }
+
+    private fun validateRegister(username: String, email: String, password: String): Boolean {
+        if (username.isBlank() || username.length < 3 || username.length > 30) {
+            _uiState.value = AuthUiState.Error("Username: 3-30 caracteres")
+            return false
+        }
+        if (username.contains(" ")) {
+            _uiState.value = AuthUiState.Error("Username sin espacios")
+            return false
+        }
+        return validateLogin(email, password)
     }
 }

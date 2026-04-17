@@ -35,6 +35,7 @@ fun RegisterScreen(
     viewModel: AuthViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
@@ -67,6 +68,12 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             NeumorphicTextField(
+                value = username,
+                onValueChange = { username = it },
+                placeholder = "Username"
+            )
+
+            NeumorphicTextField(
                 value = email,
                 onValueChange = { email = it },
                 placeholder = "Email",
@@ -76,7 +83,7 @@ fun RegisterScreen(
             NeumorphicTextField(
                 value = password,
                 onValueChange = { password = it },
-                placeholder = "Password (mín. 6 caracteres)",
+                placeholder = "Password",
                 isPassword = true
             )
 
@@ -91,7 +98,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             NeumorphicButton(
-                onClick = { viewModel.signUp(email, password) },
+                onClick = { viewModel.signUp(username, email, password) },
                 modifier = Modifier.fillMaxWidth(),
                 accent = true,
                 enabled = uiState !is AuthUiState.Loading

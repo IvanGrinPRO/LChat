@@ -1,13 +1,6 @@
 package com.lchat.app.navigation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -15,11 +8,18 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import com.lchat.app.auth.LoginScreen
 import com.lchat.app.auth.RegisterScreen
+import com.lchat.app.chats.ChatScreen
+import com.lchat.app.chats.ChatsListScreen
+import com.lchat.app.chats.NewChatScreen
 
 object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val CHATS = "chats"
+    const val NEW_CHAT = "new_chat"
+    const val CHAT = "chat/{chatId}"
+
+    fun chat(chatId: String) = "chat/$chatId"
 }
 
 @Composable
@@ -63,23 +63,39 @@ fun LChatNavigation() {
         }
 
         composable(Routes.CHATS) {
-            ChatsPlaceholder()
+            ChatsListScreen(
+                onChatClick = { chatId ->
+                    navController.navigate(Routes.chat(chatId))
+                },
+                onNewChatClick = {
+                    navController.navigate(Routes.NEW_CHAT)
+                },
+                onLogoutClick = {
+                    Firebase.auth.signOut()
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
         }
-    }
-}
 
-@Composable
-private fun ChatsPlaceholder() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Logueado: ${Firebase.auth.currentUser?.email ?: "?"}",
-            color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.titleMedium
-        )
+        composable(Routes.NEW_CHAT) {
+            NewChatScreen(
+                onChatCreated = { chatId ->
+                    navController.navigate(Routes.chat(chatId)) {
+                        popUpTo(Routes.CHATS)
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.CHAT) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
+            ChatScreen(
+                chatId = chatId,
+                onBack = { navController.popBackStack() }
+            )
+        }
     }
 }

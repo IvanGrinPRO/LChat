@@ -3,11 +3,13 @@ package com.lchat.app.auth
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
 
 class AuthRepository(
-    private val auth: FirebaseAuth = Firebase.auth
+    private val auth: FirebaseAuth = Firebase.auth,
+    private val firestore: com.google.firebase.firestore.FirebaseFirestore = Firebase.firestore
 ) {
     val currentUser: FirebaseUser?
         get() = auth.currentUser
@@ -27,6 +29,17 @@ class AuthRepository(
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             val user = result.user ?: return Result.failure(IllegalStateException("Usuario nulo"))
             Result.success(user)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateUsername(uid: String, username: String): Result<Unit> {
+        return try {
+            firestore.collection("users").document(uid)
+                .set(mapOf("username" to username), com.google.firebase.firestore.SetOptions.merge())
+                .await()
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
