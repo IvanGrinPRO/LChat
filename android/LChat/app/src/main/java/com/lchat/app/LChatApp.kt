@@ -1,19 +1,31 @@
 package com.lchat.app
 
 import android.app.Application
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.functions.ktx.functions
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
+import com.lchat.app.data.UserRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class LChatApp : Application() {
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val userRepository by lazy { UserRepository() }
 
     override fun onCreate() {
         super.onCreate()
         if (BuildConfig.DEBUG) {
             connectToEmulators()
         }
+        setupPresence()
     }
 
     private fun connectToEmulators() {
@@ -22,5 +34,19 @@ class LChatApp : Application() {
         Firebase.firestore.useEmulator(host, 8080)
         Firebase.storage.useEmulator(host, 9199)
         Firebase.functions.useEmulator(host, 5001)
+    }
+
+    private fun setupPresence() {
+        ProcessLifecycleOwner.get().lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onStart(owner: LifecycleOwner) {
+                    appScope.launch { userRepository.setOnline(true) }
+                }
+
+                override fun onStop(owner: LifecycleOwner) {
+                    appScope.launch { userRepository.setOnline(false) }
+                }
+            }
+        )
     }
 }

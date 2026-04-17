@@ -11,6 +11,8 @@ import com.lchat.app.auth.RegisterScreen
 import com.lchat.app.chats.ChatScreen
 import com.lchat.app.chats.ChatsListScreen
 import com.lchat.app.chats.NewChatScreen
+import com.lchat.app.data.UserRepository
+import kotlinx.coroutines.launch
 
 object Routes {
     const val LOGIN = "login"
@@ -39,6 +41,9 @@ fun LChatNavigation() {
         composable(Routes.LOGIN) {
             LoginScreen(
                 onLoginSuccess = {
+                    kotlinx.coroutines.MainScope().launch {
+                        UserRepository().setOnline(true)
+                    }
                     navController.navigate(Routes.CHATS) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
@@ -52,6 +57,9 @@ fun LChatNavigation() {
         composable(Routes.REGISTER) {
             RegisterScreen(
                 onRegisterSuccess = {
+                    kotlinx.coroutines.MainScope().launch {
+                        UserRepository().setOnline(true)
+                    }
                     navController.navigate(Routes.CHATS) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
@@ -71,9 +79,12 @@ fun LChatNavigation() {
                     navController.navigate(Routes.NEW_CHAT)
                 },
                 onLogoutClick = {
-                    Firebase.auth.signOut()
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(0) { inclusive = true }
+                    kotlinx.coroutines.MainScope().launch {
+                        com.lchat.app.data.UserRepository().setOnline(false)
+                        Firebase.auth.signOut()
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
                 }
             )

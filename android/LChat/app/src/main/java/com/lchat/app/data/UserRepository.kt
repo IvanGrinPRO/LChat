@@ -51,4 +51,20 @@ class UserRepository(
             null
         }
     }
+    suspend fun setOnline(isOnline: Boolean) {
+        if (currentUid.isEmpty()) return
+        try {
+            val data = mutableMapOf<String, Any>(
+                "isOnline" to isOnline
+            )
+            if (!isOnline) {
+                data["lastSeen"] = com.google.firebase.firestore.FieldValue.serverTimestamp()
+            }
+            firestore.collection("users").document(currentUid)
+                .update(data)
+                .await()
+        } catch (_: Exception) {
+            // No bloquear si falla
+        }
+    }
 }
