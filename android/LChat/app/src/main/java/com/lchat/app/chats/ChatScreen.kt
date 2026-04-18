@@ -1,5 +1,9 @@
 package com.lchat.app.chats
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,9 +41,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.lchat.app.data.Message
 import com.lchat.app.ui.components.NeumorphicButton
 import com.lchat.app.ui.components.NeumorphicTextField
@@ -61,8 +68,13 @@ fun ChatScreen(
     val otherUser by viewModel.otherUser.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
-
     var messageToDelete by remember { mutableStateOf<Message?>(null) }
+
+    val photoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.sendImage(it) }
+    }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -108,6 +120,11 @@ fun ChatScreen(
             onSend = {
                 viewModel.sendMessage(inputText)
                 inputText = ""
+            },
+            onPickImage = {
+                photoLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
             }
         )
     }
@@ -201,6 +218,7 @@ private fun MessageBubble(
 ) {
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.75f).dp
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    val isImage = message.type == "image" && message.fileUrl != null
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -222,18 +240,33 @@ private fun MessageBubble(
                         bottomEnd = if (isMine) 4.dp else 16.dp
                     )
                 )
-                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .padding(
+                    horizontal = if (isImage) 4.dp else 14.dp,
+                    vertical = if (isImage) 4.dp else 10.dp
+                )
         ) {
             Column {
-                Text(
-                    text = message.text ?: "",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (isMine) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
-                )
+                if (isImage) {
+                    AsyncImage(
+                        model = message.fileUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .aspectRatio(1.3f),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = message.text ?: "",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (isMine) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
+                    )
+                }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = message.createdAt?.let { timeFormat.format(it.toDate()) } ?: "",
@@ -254,7 +287,8 @@ private fun MessageBubble(
 private fun MessageInput(
     value: String,
     onValueChange: (String) -> Unit,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    onPickImage: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -262,6 +296,18 @@ private fun MessageInput(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .neumorphic(shape = CircleShape)
+                .clickable { onPickImage() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("P", color = NeuAccent, style = MaterialTheme.typography.labelSmall)
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
         Box(modifier = Modifier.weight(1f)) {
             NeumorphicTextField(
                 value = value,
@@ -270,7 +316,7 @@ private fun MessageInput(
             )
         }
 
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
         NeumorphicButton(
             onClick = onSend,

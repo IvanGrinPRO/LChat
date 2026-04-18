@@ -8,6 +8,7 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.9.4"
 activityCompose = "1.11.0"
 composeBom = "2024.09.00"
+coil = "2.7.0"
 googleServices = "4.4.2"
 firebaseBom = "33.5.1"
 kotlinxCoroutinesPlayServices = "1.9.0"
@@ -15,6 +16,7 @@ navigationCompose = "2.8.4"
 lifecycleViewmodelCompose = "2.8.7"
 
 [libraries]
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycleRuntimeKtx" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

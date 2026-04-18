@@ -5,6 +5,7 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.functions.ktx.functions
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.ktx.storage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -132,6 +133,47 @@ class ChatRepository(
             functions.getHttpsCallable("deleteMessage")
                 .call(data)
                 .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun sendImageMessage(chatId: String, imageUri: android.net.Uri): Result<Unit> {
+        return try {
+            val messageId = firestore.collection("chats")
+                .document(chatId)
+                .collection("messages")
+                .document().id
+
+            val storageRef = com.google.firebase.ktx.Firebase
+                .storage.reference
+                .child("chats/$chatId/images/$messageId.jpg")
+
+            storageRef.putFile(imageUri).await()
+            val downloadUrl = storageRef.downloadUrl.await().toString()
+
+            val message = hashMapOf(
+                "chatId" to chatId,
+                "senderId" to currentUid,
+                "type" to "image",
+                "text" to null,
+                "fileUrl" to downloadUrl,
+                "fileName" to null,
+                "fileSize" to null,
+                "thumbnailUrl" to downloadUrl,
+                "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                "readBy" to listOf(currentUid),
+                "deletedFor" to emptyList<String>()
+            )
+
+            firestore.collection("chats")
+                .document(chatId)
+                .collection("messages")
+                .document(messageId)
+                .set(message)
+                .await()
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
