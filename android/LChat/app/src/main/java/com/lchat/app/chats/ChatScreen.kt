@@ -49,8 +49,9 @@ import androidx.compose.foundation.clickable
 @Composable
 fun ChatScreen(
     chatId: String,
+    otherUid: String,
     onBack: () -> Unit,
-    viewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(chatId))
+    viewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(chatId, otherUid))
 ) {
     val messages by viewModel.messages.collectAsState()
     val otherUser by viewModel.otherUser.collectAsState()

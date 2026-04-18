@@ -1,6 +1,7 @@
 package com.lchat.app
 
 import android.app.Application
+import android.os.Build
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -29,11 +30,21 @@ class LChatApp : Application() {
     }
 
     private fun connectToEmulators() {
-        val host = "10.0.2.2"
+        val host = if (isEmulator()) "10.0.2.2" else BuildConfig.EMULATOR_HOST
         Firebase.auth.useEmulator(host, 9099)
         Firebase.firestore.useEmulator(host, 8080)
         Firebase.storage.useEmulator(host, 9199)
         Firebase.functions.useEmulator(host, 5001)
+    }
+
+    private fun isEmulator(): Boolean {
+        return (Build.FINGERPRINT.contains("generic")
+                || Build.FINGERPRINT.contains("emulator")
+                || Build.MODEL.contains("Emulator")
+                || Build.MODEL.contains("Android SDK")
+                || Build.MANUFACTURER.contains("Genymotion")
+                || Build.PRODUCT.contains("sdk")
+                || Build.PRODUCT.contains("emulator"))
     }
 
     private fun setupPresence() {

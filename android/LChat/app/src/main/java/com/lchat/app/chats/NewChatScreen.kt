@@ -38,7 +38,7 @@ import com.lchat.app.ui.theme.TextSecondary
 
 @Composable
 fun NewChatScreen(
-    onChatCreated: (chatId: String) -> Unit,
+    onChatCreated: (chatId: String, otherUid: String) -> Unit,
     onBack: () -> Unit,
     viewModel: NewChatViewModel = viewModel()
 ) {
@@ -47,7 +47,8 @@ fun NewChatScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is NewChatUiState.Created) {
-            onChatCreated((uiState as NewChatUiState.Created).chatId)
+            val created = uiState as NewChatUiState.Created
+            onChatCreated(created.chatId, created.otherUid)
         }
     }
 

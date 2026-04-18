@@ -112,4 +112,14 @@ class ChatRepository(
             Result.failure(e)
         }
     }
+
+    suspend fun getChatOnce(chatId: String): Chat? {
+        return try {
+            firestore.collection("chats").document(chatId)
+                .get().await()
+                .toObject(Chat::class.java)?.copy(id = chatId)
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

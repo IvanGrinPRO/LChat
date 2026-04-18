@@ -39,7 +39,7 @@ import androidx.compose.foundation.lazy.items
 
 @Composable
 fun ChatsListScreen(
-    onChatClick: (chatId: String) -> Unit,
+    onChatClick: (chatId: String, otherUid: String) -> Unit,
     onNewChatClick: () -> Unit,
     onLogoutClick: () -> Unit,
     viewModel: ChatsViewModel = viewModel()
@@ -120,7 +120,7 @@ fun ChatsListScreen(
                     items(chats, key = { it.chat.id }) { preview ->
                         ChatItem(
                             preview = preview,
-                            onClick = { onChatClick(preview.chat.id) }
+                            onClick = { onChatClick(preview.chat.id, preview.otherUser.uid) }
                         )
                     }
                 }

@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 
 class ChatViewModel(
     private val chatId: String,
+    private val otherUid: String,
     private val chatRepository: ChatRepository = ChatRepository(),
     private val userRepository: UserRepository = UserRepository()
 ) : ViewModel() {
@@ -42,12 +43,8 @@ class ChatViewModel(
 
     private fun loadOtherUser() {
         viewModelScope.launch {
-            chatRepository.getMyChats().collect { chats ->
-                val chat = chats.firstOrNull { it.id == chatId } ?: return@collect
-                val otherUid = chat.members.firstOrNull { it != currentUid } ?: return@collect
-                userRepository.getUserById(otherUid).collect { user ->
-                    _otherUser.value = user
-                }
+            userRepository.getUserById(otherUid).collect { user ->
+                _otherUser.value = user
             }
         }
     }
@@ -65,10 +62,10 @@ class ChatViewModel(
         }
     }
 
-    class Factory(private val chatId: String) : ViewModelProvider.Factory {
+    class Factory(private val chatId: String, private val otherUid: String) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return ChatViewModel(chatId) as T
+            return ChatViewModel(chatId, otherUid) as T
         }
     }
 }

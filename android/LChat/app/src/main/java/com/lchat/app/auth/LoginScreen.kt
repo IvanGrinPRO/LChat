@@ -27,6 +27,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lchat.app.ui.components.NeumorphicButton
 import com.lchat.app.ui.components.NeumorphicTextField
 import com.lchat.app.ui.theme.NeuAccent
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.lchat.app.R
 
 @Composable
 fun LoginScreen(
@@ -58,10 +62,13 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "LChat",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onBackground
+            Image(
+                painter = painterResource(id = R.drawable.logo_login),
+                contentDescription = "LChat",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                contentScale = ContentScale.Fit
             )
 
             Spacer(modifier = Modifier.height(24.dp))

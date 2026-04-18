@@ -19,9 +19,9 @@ object Routes {
     const val REGISTER = "register"
     const val CHATS = "chats"
     const val NEW_CHAT = "new_chat"
-    const val CHAT = "chat/{chatId}"
+    const val CHAT = "chat/{chatId}/{otherUid}"
 
-    fun chat(chatId: String) = "chat/$chatId"
+    fun chat(chatId: String, otherUid: String) = "chat/$chatId/$otherUid"
 }
 
 @Composable
@@ -72,15 +72,15 @@ fun LChatNavigation() {
 
         composable(Routes.CHATS) {
             ChatsListScreen(
-                onChatClick = { chatId ->
-                    navController.navigate(Routes.chat(chatId))
+                onChatClick = { chatId, otherUid ->
+                    navController.navigate(Routes.chat(chatId, otherUid))
                 },
                 onNewChatClick = {
                     navController.navigate(Routes.NEW_CHAT)
                 },
                 onLogoutClick = {
                     kotlinx.coroutines.MainScope().launch {
-                        com.lchat.app.data.UserRepository().setOnline(false)
+                        UserRepository().setOnline(false)
                         Firebase.auth.signOut()
                         navController.navigate(Routes.LOGIN) {
                             popUpTo(0) { inclusive = true }
@@ -92,8 +92,8 @@ fun LChatNavigation() {
 
         composable(Routes.NEW_CHAT) {
             NewChatScreen(
-                onChatCreated = { chatId ->
-                    navController.navigate(Routes.chat(chatId)) {
+                onChatCreated = { chatId, otherUid ->
+                    navController.navigate(Routes.chat(chatId, otherUid)) {
                         popUpTo(Routes.CHATS)
                     }
                 },
@@ -103,8 +103,10 @@ fun LChatNavigation() {
 
         composable(Routes.CHAT) { backStackEntry ->
             val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
+            val otherUid = backStackEntry.arguments?.getString("otherUid") ?: return@composable
             ChatScreen(
                 chatId = chatId,
+                otherUid = otherUid,
                 onBack = { navController.popBackStack() }
             )
         }

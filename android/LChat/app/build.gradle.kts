@@ -17,6 +17,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "EMULATOR_HOST", "\"192.168.1.138\"")
     }
 
     buildTypes {

@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 sealed interface NewChatUiState {
     data object Idle : NewChatUiState
     data object Creating : NewChatUiState
-    data class Created(val chatId: String) : NewChatUiState
+    data class Created(val chatId: String, val otherUid: String) : NewChatUiState
     data class Error(val message: String) : NewChatUiState
 }
 
@@ -40,7 +40,7 @@ class NewChatViewModel(
         viewModelScope.launch {
             _uiState.value = NewChatUiState.Creating
             chatRepository.createChat(otherUid)
-                .onSuccess { chatId -> _uiState.value = NewChatUiState.Created(chatId) }
+                .onSuccess { chatId -> _uiState.value = NewChatUiState.Created(chatId, otherUid) }
                 .onFailure { _uiState.value = NewChatUiState.Error(it.message ?: "Error") }
         }
     }

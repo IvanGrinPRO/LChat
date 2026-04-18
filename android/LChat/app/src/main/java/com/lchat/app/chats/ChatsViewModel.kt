@@ -6,6 +6,7 @@ import com.lchat.app.data.Chat
 import com.lchat.app.data.ChatRepository
 import com.lchat.app.data.User
 import com.lchat.app.data.UserRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,7 +28,9 @@ class ChatsViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val userCache = mutableMapOf<String, User>()
+    private var currentChats = listOf<Chat>()
+    private val usersMap = mutableMapOf<String, User>()
+    private val userJobs = mutableMapOf<String, Job>()
 
     init {
         loadChats()
@@ -36,19 +39,37 @@ class ChatsViewModel(
     private fun loadChats() {
         viewModelScope.launch {
             chatRepository.getMyChats().collect { chatList ->
-                val previews = chatList.mapNotNull { chat ->
+                currentChats = chatList
+                chatList.forEach { chat ->
                     val otherUid = chat.members.firstOrNull { it != userRepository.currentUid }
-                        ?: return@mapNotNull null
-
-                    val otherUser = userCache[otherUid]
-                        ?: userRepository.getUserOnce(otherUid)?.also { userCache[otherUid] = it }
-                        ?: return@mapNotNull null
-
-                    ChatPreview(chat = chat, otherUser = otherUser)
+                        ?: return@forEach
+                    if (otherUid !in userJobs) {
+                        userJobs[otherUid] = listenToUser(otherUid)
+                    }
                 }
-                _chats.value = previews
+                rebuildPreviews()
                 _isLoading.value = false
             }
+        }
+    }
+
+    private fun listenToUser(uid: String): Job {
+        return viewModelScope.launch {
+            userRepository.getUserById(uid).collect { user ->
+                if (user != null) {
+                    usersMap[uid] = user
+                    rebuildPreviews()
+                }
+            }
+        }
+    }
+
+    private fun rebuildPreviews() {
+        _chats.value = currentChats.mapNotNull { chat ->
+            val otherUid = chat.members.firstOrNull { it != userRepository.currentUid }
+                ?: return@mapNotNull null
+            val otherUser = usersMap[otherUid] ?: return@mapNotNull null
+            ChatPreview(chat = chat, otherUser = otherUser)
         }
     }
 }
