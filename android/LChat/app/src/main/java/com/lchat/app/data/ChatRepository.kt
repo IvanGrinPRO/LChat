@@ -122,4 +122,19 @@ class ChatRepository(
             null
         }
     }
+
+    suspend fun deleteMessage(chatId: String, messageId: String): Result<Unit> {
+        return try {
+            val data = hashMapOf(
+                "chatId" to chatId,
+                "messageId" to messageId
+            )
+            functions.getHttpsCallable("deleteMessage")
+                .call(data)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

@@ -62,6 +62,12 @@ class ChatViewModel(
         }
     }
 
+    fun deleteMessage(messageId: String) {
+        viewModelScope.launch {
+            chatRepository.deleteMessage(chatId, messageId)
+        }
+    }
+
     class Factory(private val chatId: String, private val otherUid: String) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

@@ -1,6 +1,9 @@
 package com.lchat.app.chats
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,8 +22,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,7 +49,6 @@ import com.lchat.app.ui.theme.OnlineGreen
 import com.lchat.app.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
 import java.util.Locale
-import androidx.compose.foundation.clickable
 
 @Composable
 fun ChatScreen(
@@ -57,6 +61,8 @@ fun ChatScreen(
     val otherUser by viewModel.otherUser.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+
+    var messageToDelete by remember { mutableStateOf<Message?>(null) }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -88,14 +94,14 @@ fun ChatScreen(
             items(messages, key = { it.id }) { message ->
                 MessageBubble(
                     message = message,
-                    isMine = message.senderId == viewModel.currentUid
+                    isMine = message.senderId == viewModel.currentUid,
+                    onLongClick = { messageToDelete = message }
                 )
             }
 
             item { Spacer(modifier = Modifier.height(8.dp)) }
         }
 
-        // Input
         MessageInput(
             value = inputText,
             onValueChange = { inputText = it },
@@ -103,6 +109,30 @@ fun ChatScreen(
                 viewModel.sendMessage(inputText)
                 inputText = ""
             }
+        )
+    }
+
+    messageToDelete?.let { msg ->
+        AlertDialog(
+            onDismissRequest = { messageToDelete = null },
+            title = { Text("Eliminar mensaje") },
+            text = { Text(msg.text ?: "Este mensaje") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteMessage(msg.id)
+                    messageToDelete = null
+                }) {
+                    Text("Eliminar", color = NeuAccent)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { messageToDelete = null }) {
+                    Text("Cancelar")
+                }
+            },
+            containerColor = NeuSurface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = TextSecondary
         )
     }
 }
@@ -131,7 +161,6 @@ private fun ChatHeader(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // Avatar
         Box(
             modifier = Modifier
                 .size(44.dp)
@@ -163,10 +192,12 @@ private fun ChatHeader(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBubble(
     message: Message,
-    isMine: Boolean
+    isMine: Boolean,
+    onLongClick: () -> Unit
 ) {
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.75f).dp
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
@@ -178,6 +209,10 @@ private fun MessageBubble(
         Box(
             modifier = Modifier
                 .widthIn(max = maxWidth)
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = onLongClick
+                )
                 .background(
                     color = if (isMine) NeuAccent else NeuSurface,
                     shape = RoundedCornerShape(
