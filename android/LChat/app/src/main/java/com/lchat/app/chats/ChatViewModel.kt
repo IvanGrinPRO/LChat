@@ -51,7 +51,12 @@ class ChatViewModel(
 
     private fun markAsRead() {
         viewModelScope.launch {
-            chatRepository.markAsRead(chatId)
+            chatRepository.getMessages(chatId).collect { messageList ->
+                val lastMessage = messageList.lastOrNull()
+                if (lastMessage != null) {
+                    chatRepository.markAsRead(chatId, lastMessage.id)
+                }
+            }
         }
     }
 

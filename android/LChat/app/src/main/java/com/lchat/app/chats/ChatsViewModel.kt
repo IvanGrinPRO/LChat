@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
 
 data class ChatPreview(
     val chat: Chat,
-    val otherUser: User
+    val otherUser: User,
+    val unreadCount: Int = 0
 )
 
 class ChatsViewModel(
@@ -30,7 +31,9 @@ class ChatsViewModel(
 
     private var currentChats = listOf<Chat>()
     private val usersMap = mutableMapOf<String, User>()
+    private val unreadMap = mutableMapOf<String, Int>()
     private val userJobs = mutableMapOf<String, Job>()
+    private val unreadJobs = mutableMapOf<String, Job>()
 
     init {
         loadChats()
@@ -45,6 +48,9 @@ class ChatsViewModel(
                         ?: return@forEach
                     if (otherUid !in userJobs) {
                         userJobs[otherUid] = listenToUser(otherUid)
+                    }
+                    if (chat.id !in unreadJobs) {
+                        unreadJobs[chat.id] = listenToUnread(chat.id)
                     }
                 }
                 rebuildPreviews()
@@ -64,12 +70,25 @@ class ChatsViewModel(
         }
     }
 
+    private fun listenToUnread(chatId: String): Job {
+        return viewModelScope.launch {
+            chatRepository.getUnreadCount(chatId).collect { count ->
+                unreadMap[chatId] = count
+                rebuildPreviews()
+            }
+        }
+    }
+
     private fun rebuildPreviews() {
         _chats.value = currentChats.mapNotNull { chat ->
             val otherUid = chat.members.firstOrNull { it != userRepository.currentUid }
                 ?: return@mapNotNull null
             val otherUser = usersMap[otherUid] ?: return@mapNotNull null
-            ChatPreview(chat = chat, otherUser = otherUser)
+            ChatPreview(
+                chat = chat,
+                otherUser = otherUser,
+                unreadCount = unreadMap[chat.id] ?: 0
+            )
         }
     }
 }

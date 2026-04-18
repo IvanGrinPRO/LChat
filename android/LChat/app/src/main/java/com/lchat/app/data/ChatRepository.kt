@@ -102,9 +102,12 @@ class ChatRepository(
         }
     }
 
-    suspend fun markAsRead(chatId: String): Result<Unit> {
+    suspend fun markAsRead(chatId: String, messageId: String): Result<Unit> {
         return try {
-            val data = hashMapOf("chatId" to chatId)
+            val data = hashMapOf(
+                "chatId" to chatId,
+                "messageId" to messageId
+            )
             functions.getHttpsCallable("markAsRead")
                 .call(data)
                 .await()
@@ -178,5 +181,20 @@ class ChatRepository(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+
+    fun getUnreadCount(chatId: String): Flow<Int> = callbackFlow {
+        val docId = "${chatId}_${currentUid}"
+        val listener = firestore.collection("chat_members").document(docId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(0)
+                    return@addSnapshotListener
+                }
+                val count = snapshot?.getLong("unreadCount")?.toInt() ?: 0
+                trySend(count)
+            }
+        awaitClose { listener.remove() }
     }
 }

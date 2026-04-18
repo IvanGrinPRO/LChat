@@ -190,13 +190,31 @@ private fun ChatItem(
             )
         }
 
-        preview.chat.lastMessageAt?.let { timestamp ->
-            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-            Text(
-                text = sdf.format(timestamp.toDate()),
-                style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary
-            )
+        Column(horizontalAlignment = Alignment.End) {
+            preview.chat.lastMessageAt?.let { timestamp ->
+                val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+                Text(
+                    text = sdf.format(timestamp.toDate()),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
+            }
+            if (preview.unreadCount > 0) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(NeuAccent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (preview.unreadCount > 99) "99+" else "${preview.unreadCount}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
         }
     }
 }
