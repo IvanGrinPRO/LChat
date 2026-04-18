@@ -90,6 +90,7 @@ fun ChatScreen(
     ) {
         ChatHeader(
             username = otherUser?.username?.ifEmpty { otherUser?.email } ?: "...",
+            avatarUrl = otherUser?.avatarUrl,
             isOnline = otherUser?.isOnline == true,
             onBack = onBack
         )
@@ -157,6 +158,7 @@ fun ChatScreen(
 @Composable
 private fun ChatHeader(
     username: String,
+    avatarUrl: String?,
     isOnline: Boolean,
     onBack: () -> Unit
 ) {
@@ -185,11 +187,20 @@ private fun ChatHeader(
                 .background(NeuSurface),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = username.take(1).uppercase(),
-                style = MaterialTheme.typography.titleMedium,
-                color = NeuAccent
-            )
+            if (avatarUrl != null) {
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    text = username.take(1).uppercase(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = NeuAccent
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(12.dp))

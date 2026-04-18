@@ -13,6 +13,7 @@ import com.lchat.app.chats.ChatsListScreen
 import com.lchat.app.chats.NewChatScreen
 import com.lchat.app.data.UserRepository
 import kotlinx.coroutines.launch
+import com.lchat.app.profile.ProfileScreen
 
 object Routes {
     const val LOGIN = "login"
@@ -20,6 +21,7 @@ object Routes {
     const val CHATS = "chats"
     const val NEW_CHAT = "new_chat"
     const val CHAT = "chat/{chatId}/{otherUid}"
+    const val PROFILE = "profile"
 
     fun chat(chatId: String, otherUid: String) = "chat/$chatId/$otherUid"
 }
@@ -86,6 +88,9 @@ fun LChatNavigation() {
                             popUpTo(0) { inclusive = true }
                         }
                     }
+                },
+                onProfileClick = {
+                    navController.navigate(Routes.PROFILE)
                 }
             )
         }
@@ -108,6 +113,21 @@ fun LChatNavigation() {
                 chatId = chatId,
                 otherUid = otherUid,
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.PROFILE) {
+            ProfileScreen(
+                onBack = { navController.popBackStack() },
+                onLogout = {
+                    kotlinx.coroutines.MainScope().launch {
+                        UserRepository().setOnline(false)
+                        Firebase.auth.signOut()
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
             )
         }
     }

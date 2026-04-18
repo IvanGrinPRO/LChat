@@ -36,12 +36,15 @@ import com.lchat.app.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.foundation.lazy.items
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @Composable
 fun ChatsListScreen(
     onChatClick: (chatId: String, otherUid: String) -> Unit,
     onNewChatClick: () -> Unit,
     onLogoutClick: () -> Unit,
+    onProfileClick: () -> Unit,
     viewModel: ChatsViewModel = viewModel()
 ) {
     val chats by viewModel.chats.collectAsState()
@@ -81,10 +84,10 @@ fun ChatsListScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .neumorphic(shape = CircleShape)
-                        .clickable { onLogoutClick() },
+                        .clickable { onProfileClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("X", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    Text("P", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -150,20 +153,20 @@ private fun ChatItem(
                     .background(NeuSurface),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = preview.otherUser.username.take(1).uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = NeuAccent
-                )
-            }
-            if (preview.otherUser.isOnline) {
-                Box(
-                    modifier = Modifier
-                        .size(14.dp)
-                        .clip(CircleShape)
-                        .background(OnlineGreen)
-                        .align(Alignment.BottomEnd)
-                )
+                if (preview.otherUser.avatarUrl != null) {
+                    AsyncImage(
+                        model = preview.otherUser.avatarUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = preview.otherUser.username.take(1).uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = NeuAccent
+                    )
+                }
             }
         }
 
