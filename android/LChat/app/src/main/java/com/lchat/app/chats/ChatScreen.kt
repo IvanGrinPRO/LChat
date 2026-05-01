@@ -1,6 +1,8 @@
 package com.lchat.app.chats
 
+import android.content.Intent
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,7 +29,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,11 +52,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.lchat.app.data.Message
-import com.lchat.app.ui.components.NeumorphicButton
 import com.lchat.app.ui.components.NeumorphicTextField
 import com.lchat.app.ui.neumorphism.neumorphic
 import com.lchat.app.ui.theme.NeuAccent
@@ -56,6 +66,15 @@ import com.lchat.app.ui.theme.OnlineGreen
 import com.lchat.app.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
 import java.util.Locale
+
+// Formatea bytes en KB/MB legible
+private fun formatFileSize(bytes: Long): String {
+    return when {
+        bytes >= 1_048_576 -> "%.1f MB".format(bytes / 1_048_576.0)
+        bytes >= 1_024     -> "%.0f KB".format(bytes / 1_024.0)
+        else               -> "$bytes B"
+    }
+}
 
 @Composable
 fun ChatScreen(
@@ -69,11 +88,37 @@ fun ChatScreen(
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     var messageToDelete by remember { mutableStateOf<Message?>(null) }
+    val context = LocalContext.current
 
+    // Selector de foto
     val photoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let { viewModel.sendImage(it) }
+    }
+
+    // Selector de archivo genérico
+    val fileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        var fileName = "file"
+        var fileSize = 0L
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val nameIdx = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                val sizeIdx = it.getColumnIndex(OpenableColumns.SIZE)
+                if (nameIdx >= 0) fileName = it.getString(nameIdx) ?: "file"
+                if (sizeIdx >= 0) fileSize = it.getLong(sizeIdx)
+            }
+        }
+
+        // Límite 20MB del contrato
+        if (fileSize > 20 * 1024 * 1024) return@rememberLauncherForActivityResult
+
+        viewModel.sendFile(uri, fileName, fileSize)
     }
 
     LaunchedEffect(messages.size) {
@@ -108,7 +153,11 @@ fun ChatScreen(
                 MessageBubble(
                     message = message,
                     isMine = message.senderId == viewModel.currentUid,
-                    onLongClick = { messageToDelete = message }
+                    onLongClick = { messageToDelete = message },
+                    onFileTap = { url ->
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        context.startActivity(intent)
+                    }
                 )
             }
 
@@ -126,6 +175,9 @@ fun ChatScreen(
                 photoLauncher.launch(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                 )
+            },
+            onPickFile = {
+                fileLauncher.launch(arrayOf("*/*"))
             }
         )
     }
@@ -134,7 +186,7 @@ fun ChatScreen(
         AlertDialog(
             onDismissRequest = { messageToDelete = null },
             title = { Text("Eliminar mensaje") },
-            text = { Text(msg.text ?: "Este mensaje") },
+            text = { Text(msg.text ?: msg.fileName ?: "Este mensaje") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteMessage(msg.id)
@@ -175,7 +227,12 @@ private fun ChatHeader(
                 .clickable { onBack() },
             contentAlignment = Alignment.Center
         ) {
-            Text("<", color = NeuAccent, style = MaterialTheme.typography.titleMedium)
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Volver",
+                tint = NeuAccent,
+                modifier = Modifier.size(20.dp)
+            )
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -225,11 +282,13 @@ private fun ChatHeader(
 private fun MessageBubble(
     message: Message,
     isMine: Boolean,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    onFileTap: (String) -> Unit
 ) {
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.75f).dp
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val isImage = message.type == "image" && message.fileUrl != null
+    val isFile = message.type == "file" && message.fileUrl != null
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -239,7 +298,9 @@ private fun MessageBubble(
             modifier = Modifier
                 .widthIn(max = maxWidth)
                 .combinedClickable(
-                    onClick = {},
+                    onClick = {
+                        if (isFile) message.fileUrl?.let { onFileTap(it) }
+                    },
                     onLongClick = onLongClick
                 )
                 .background(
@@ -257,26 +318,36 @@ private fun MessageBubble(
                 )
         ) {
             Column {
-                if (isImage) {
-                    AsyncImage(
-                        model = message.fileUrl,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .aspectRatio(1.3f),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Text(
-                        text = message.text ?: "",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (isMine) {
-                            MaterialTheme.colorScheme.onPrimary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        }
-                    )
+                when {
+                    isImage -> {
+                        AsyncImage(
+                            model = message.fileUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .aspectRatio(1.3f),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                    isFile -> {
+                        FileBubbleContent(
+                            fileName = message.fileName ?: "Archivo",
+                            fileSize = message.fileSize,
+                            isMine = isMine
+                        )
+                    }
+                    else -> {
+                        Text(
+                            text = message.text ?: "",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isMine) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -295,11 +366,48 @@ private fun MessageBubble(
 }
 
 @Composable
+private fun FileBubbleContent(
+    fileName: String,
+    fileSize: Long?,
+    isMine: Boolean
+) {
+    val textColor = if (isMine) MaterialTheme.colorScheme.onPrimary
+    else MaterialTheme.colorScheme.onSurface
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = Icons.Default.Description,
+            contentDescription = null,
+            tint = textColor.copy(alpha = 0.8f),
+            modifier = Modifier.size(32.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Text(
+                text = fileName,
+                style = MaterialTheme.typography.bodyMedium,
+                color = textColor,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (fileSize != null && fileSize > 0) {
+                Text(
+                    text = formatFileSize(fileSize),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = textColor.copy(alpha = 0.6f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun MessageInput(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
-    onPickImage: () -> Unit
+    onPickImage: () -> Unit,
+    onPickFile: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -307,14 +415,38 @@ private fun MessageInput(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Botón foto
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(40.dp)
                 .neumorphic(shape = CircleShape)
                 .clickable { onPickImage() },
             contentAlignment = Alignment.Center
         ) {
-            Text("P", color = NeuAccent, style = MaterialTheme.typography.labelSmall)
+            Icon(
+                imageVector = Icons.Default.Image,
+                contentDescription = "Foto",
+                tint = NeuAccent,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // Botón archivo
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .neumorphic(shape = CircleShape)
+                .clickable { onPickFile() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.AttachFile,
+                contentDescription = "Archivo",
+                tint = TextSecondary,
+                modifier = Modifier.size(18.dp)
+            )
         }
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -329,11 +461,20 @@ private fun MessageInput(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        NeumorphicButton(
-            onClick = onSend,
-            accent = true
+        // Botón enviar
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(color = NeuAccent, shape = CircleShape)
+                .clickable { onSend() },
+            contentAlignment = Alignment.Center
         ) {
-            Text(">")
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Enviar",
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

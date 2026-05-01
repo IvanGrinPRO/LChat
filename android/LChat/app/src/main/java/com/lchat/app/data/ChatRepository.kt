@@ -184,6 +184,53 @@ class ChatRepository(
     }
 
 
+    suspend fun sendFileMessage(
+        chatId: String,
+        fileUri: android.net.Uri,
+        fileName: String,
+        fileSize: Long
+    ): Result<Unit> {
+        return try {
+            val messageId = firestore.collection("chats")
+                .document(chatId)
+                .collection("messages")
+                .document().id
+
+            val storageRef = com.google.firebase.ktx.Firebase
+                .storage.reference
+                .child("chats/$chatId/files/${messageId}_${fileName}")
+
+            storageRef.putFile(fileUri).await()
+            val downloadUrl = storageRef.downloadUrl.await().toString()
+
+            val message = hashMapOf(
+                "chatId" to chatId,
+                "senderId" to currentUid,
+                "type" to "file",
+                "text" to null,
+                "fileUrl" to downloadUrl,
+                "fileName" to fileName,
+                "fileSize" to fileSize,
+                "thumbnailUrl" to null,
+                "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                "readBy" to listOf(currentUid),
+                "deletedFor" to emptyList<String>()
+            )
+
+            firestore.collection("chats")
+                .document(chatId)
+                .collection("messages")
+                .document(messageId)
+                .set(message)
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
     fun getUnreadCount(chatId: String): Flow<Int> = callbackFlow {
         val docId = "${chatId}_${currentUid}"
         val listener = firestore.collection("chat_members").document(docId)
