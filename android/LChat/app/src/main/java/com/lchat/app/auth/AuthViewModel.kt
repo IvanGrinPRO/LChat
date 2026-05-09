@@ -40,6 +40,12 @@ class AuthViewModel(
 
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
+
+            if (userRepository.isUsernameTaken(username.trim())) {
+                _uiState.value = AuthUiState.Error("Username вже зайнятий")
+                return@launch
+            }
+
             repository.signUp(email.trim(), password)
                 .onSuccess { user ->
                     try {
@@ -83,8 +89,8 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Error("Username: 3-30 caracteres")
             return false
         }
-        if (username.contains(" ")) {
-            _uiState.value = AuthUiState.Error("Username sin espacios")
+        if (!username.matches(Regex("^[a-zA-Z0-9_-]+$"))) {
+            _uiState.value = AuthUiState.Error("Username: solo letras, números, _ y -")
             return false
         }
         return validateLogin(email, password)

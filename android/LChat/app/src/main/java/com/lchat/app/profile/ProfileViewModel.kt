@@ -42,14 +42,25 @@ class ProfileViewModel(
 
     fun updateUsername(newUsername: String) {
         val trimmed = newUsername.trim()
-        if (trimmed.length < 3 || trimmed.length > 30 || trimmed.contains(" ")) {
-            _message.value = "Username: 3-30 caracteres, sin espacios"
+        if (trimmed.length < 3 || trimmed.length > 30) {
+            _message.value = "Username: 3-30 caracteres"
+            return
+        }
+        if (!trimmed.matches(Regex("^[a-zA-Z0-9_-]+$"))) {
+            _message.value = "Username: solo letras, números, _ y -"
             return
         }
         viewModelScope.launch {
+            if (userRepository.isUsernameTaken(trimmed, excludeUid = uid)) {
+                _message.value = "Username ya está en uso"
+                return@launch
+            }
             try {
                 firestore.collection("users").document(uid)
-                    .update("username", trimmed).await()
+                    .update(mapOf(
+                        "username" to trimmed,
+                        "usernameLower" to trimmed.lowercase()
+                    )).await()
                 _message.value = "Username actualizado"
             } catch (e: Exception) {
                 _message.value = "Error: ${e.message}"

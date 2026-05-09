@@ -51,6 +51,19 @@ class UserRepository(
             null
         }
     }
+    suspend fun isUsernameTaken(username: String, excludeUid: String = ""): Boolean {
+        return try {
+            val result = firestore.collection("users")
+                .whereEqualTo("usernameLower", username.lowercase())
+                .limit(1)
+                .get()
+                .await()
+            result.documents.any { it.id != excludeUid }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     suspend fun saveFcmToken(token: String) {
         if (currentUid.isEmpty()) return
         try {

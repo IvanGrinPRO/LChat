@@ -8,6 +8,7 @@ export const onUserCreated = auth.user().onCreate(async (user) => {
   await db.collection("users").doc(user.uid).set({
     uid: user.uid,
     username: user.displayName ?? "",
+    usernameLower: (user.displayName ?? "").toLowerCase(),
     email: user.email ?? "",
     avatarUrl: null,
     createdAt: FieldValue.serverTimestamp(),
