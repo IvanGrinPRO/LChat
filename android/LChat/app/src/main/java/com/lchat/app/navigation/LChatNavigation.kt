@@ -1,5 +1,6 @@
 package com.lchat.app.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -10,10 +11,16 @@ import com.lchat.app.auth.LoginScreen
 import com.lchat.app.auth.RegisterScreen
 import com.lchat.app.chats.ChatScreen
 import com.lchat.app.chats.ChatsListScreen
+import com.lchat.app.chats.FullscreenImageScreen
 import com.lchat.app.chats.NewChatScreen
 import com.lchat.app.data.UserRepository
 import kotlinx.coroutines.launch
 import com.lchat.app.profile.ProfileScreen
+
+// URL guardada en memoria para evitar problemas de encoding en Navigation
+object FullscreenImageHolder {
+    var url: String = ""
+}
 
 object Routes {
     const val LOGIN = "login"
@@ -22,6 +29,7 @@ object Routes {
     const val NEW_CHAT = "new_chat"
     const val CHAT = "chat/{chatId}/{otherUid}"
     const val PROFILE = "profile"
+    const val FULLSCREEN_IMAGE = "fullscreen_image"
 
     fun chat(chatId: String, otherUid: String) = "chat/$chatId/$otherUid"
 }
@@ -112,6 +120,17 @@ fun LChatNavigation() {
             ChatScreen(
                 chatId = chatId,
                 otherUid = otherUid,
+                onBack = { navController.popBackStack() },
+                onImageClick = { url ->
+                    FullscreenImageHolder.url = url
+                    navController.navigate(Routes.FULLSCREEN_IMAGE)
+                }
+            )
+        }
+
+        composable(Routes.FULLSCREEN_IMAGE) {
+            FullscreenImageScreen(
+                imageUrl = FullscreenImageHolder.url,
                 onBack = { navController.popBackStack() }
             )
         }

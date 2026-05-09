@@ -75,7 +75,6 @@ import com.lchat.app.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-// Formatea bytes en KB/MB legible
 private fun formatFileSize(bytes: Long): String {
     return when {
         bytes >= 1_048_576 -> "%.1f MB".format(bytes / 1_048_576.0)
@@ -90,6 +89,7 @@ fun ChatScreen(
     chatId: String,
     otherUid: String,
     onBack: () -> Unit,
+    onImageClick: (String) -> Unit = {},
     viewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(chatId, otherUid))
 ) {
     val messages by viewModel.messages.collectAsState()
@@ -100,14 +100,12 @@ fun ChatScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
 
-    // Selector de foto
     val photoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let { viewModel.sendImage(it) }
     }
 
-    // Selector de archivo genérico
     val fileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -125,7 +123,6 @@ fun ChatScreen(
             }
         }
 
-        // Límite 20MB del contrato
         if (fileSize > 20 * 1024 * 1024) return@rememberLauncherForActivityResult
 
         viewModel.sendFile(uri, fileName, fileSize)
@@ -167,7 +164,8 @@ fun ChatScreen(
                     onFileTap = { url ->
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                         context.startActivity(intent)
-                    }
+                    },
+                    onImageTap = { url -> onImageClick(url) }
                 )
             }
 
@@ -200,11 +198,10 @@ fun ChatScreen(
         ) {
             Column(modifier = Modifier.padding(bottom = 32.dp)) {
 
-                // Завантажити (тільки для фото і файлів)
                 if (msg.type == "image" || msg.type == "file") {
                     MenuOption(
                         icon = Icons.Default.Download,
-                        label = "Завантажити",
+                        label = "Descargar",
                         iconTint = MaterialTheme.colorScheme.onSurface
                     ) {
                         val url = msg.fileUrl ?: return@MenuOption
@@ -218,22 +215,20 @@ fun ChatScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                 }
 
-                // Видалити для мене
                 MenuOption(
                     icon = Icons.Default.Delete,
-                    label = "Видалити для мене",
+                    label = "Eliminar para mi",
                     iconTint = NeuAccent
                 ) {
                     viewModel.deleteMessage(msg.id, deleteForAll = false)
                     menuMessage = null
                 }
 
-                // Видалити для всіх (тільки свої повідомлення)
                 if (msg.senderId == viewModel.currentUid) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                     MenuOption(
                         icon = Icons.Default.DeleteForever,
-                        label = "Видалити для всіх",
+                        label = "Eliminar para todos",
                         iconTint = NeuAccent
                     ) {
                         viewModel.deleteMessage(msg.id, deleteForAll = true)
@@ -350,7 +345,8 @@ private fun MessageBubble(
     message: Message,
     isMine: Boolean,
     onLongClick: () -> Unit,
-    onFileTap: (String) -> Unit
+    onFileTap: (String) -> Unit,
+    onImageTap: (String) -> Unit
 ) {
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.75f).dp
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
@@ -366,7 +362,10 @@ private fun MessageBubble(
                 .widthIn(max = maxWidth)
                 .combinedClickable(
                     onClick = {
-                        if (isFile) message.fileUrl?.let { onFileTap(it) }
+                        when {
+                            isImage -> message.fileUrl?.let { onImageTap(it) }
+                            isFile  -> message.fileUrl?.let { onFileTap(it) }
+                        }
                     },
                     onLongClick = onLongClick
                 )
