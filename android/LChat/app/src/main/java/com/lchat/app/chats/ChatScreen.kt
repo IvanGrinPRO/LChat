@@ -1,7 +1,10 @@
 package com.lchat.app.chats
 
+import android.app.DownloadManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Environment
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -33,13 +36,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -76,6 +84,7 @@ private fun formatFileSize(bytes: Long): String {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     chatId: String,
@@ -87,7 +96,8 @@ fun ChatScreen(
     val otherUser by viewModel.otherUser.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
-    var messageToDelete by remember { mutableStateOf<Message?>(null) }
+    var menuMessage by remember { mutableStateOf<Message?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
 
     // Selector de foto
@@ -153,7 +163,7 @@ fun ChatScreen(
                 MessageBubble(
                     message = message,
                     isMine = message.senderId == viewModel.currentUid,
-                    onLongClick = { messageToDelete = message },
+                    onLongClick = { menuMessage = message },
                     onFileTap = { url ->
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                         context.startActivity(intent)
@@ -182,29 +192,86 @@ fun ChatScreen(
         )
     }
 
-    messageToDelete?.let { msg ->
-        AlertDialog(
-            onDismissRequest = { messageToDelete = null },
-            title = { Text("Eliminar mensaje") },
-            text = { Text(msg.text ?: msg.fileName ?: "Este mensaje") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteMessage(msg.id)
-                    messageToDelete = null
-                }) {
-                    Text("Eliminar", color = NeuAccent)
+    menuMessage?.let { msg ->
+        ModalBottomSheet(
+            onDismissRequest = { menuMessage = null },
+            sheetState = sheetState,
+            containerColor = NeuSurface
+        ) {
+            Column(modifier = Modifier.padding(bottom = 32.dp)) {
+
+                // Завантажити (тільки для фото і файлів)
+                if (msg.type == "image" || msg.type == "file") {
+                    MenuOption(
+                        icon = Icons.Default.Download,
+                        label = "Завантажити",
+                        iconTint = MaterialTheme.colorScheme.onSurface
+                    ) {
+                        val url = msg.fileUrl ?: return@MenuOption
+                        val fileName = when (msg.type) {
+                            "image" -> "lchat_photo_${msg.id}.jpg"
+                            else    -> msg.fileName ?: "lchat_file_${msg.id}"
+                        }
+                        downloadFile(context, url, fileName)
+                        menuMessage = null
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { messageToDelete = null }) {
-                    Text("Cancelar")
+
+                // Видалити для мене
+                MenuOption(
+                    icon = Icons.Default.Delete,
+                    label = "Видалити для мене",
+                    iconTint = NeuAccent
+                ) {
+                    viewModel.deleteMessage(msg.id, deleteForAll = false)
+                    menuMessage = null
                 }
-            },
-            containerColor = NeuSurface,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = TextSecondary
-        )
+
+                // Видалити для всіх (тільки свої повідомлення)
+                if (msg.senderId == viewModel.currentUid) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                    MenuOption(
+                        icon = Icons.Default.DeleteForever,
+                        label = "Видалити для всіх",
+                        iconTint = NeuAccent
+                    ) {
+                        viewModel.deleteMessage(msg.id, deleteForAll = true)
+                        menuMessage = null
+                    }
+                }
+            }
+        }
     }
+}
+
+@Composable
+private fun MenuOption(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    iconTint: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(text = label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+private fun downloadFile(context: Context, url: String, fileName: String) {
+    val request = DownloadManager.Request(Uri.parse(url))
+        .setTitle(fileName)
+        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+    val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    manager.enqueue(request)
 }
 
 @Composable

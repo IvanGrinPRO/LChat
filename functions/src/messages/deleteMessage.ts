@@ -10,9 +10,10 @@ export const deleteMessage = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const {chatId, messageId} = request.data as {
+  const {chatId, messageId, deleteForAll} = request.data as {
     chatId: string;
     messageId: string;
+    deleteForAll?: boolean;
   };
 
   if (!chatId || !messageId) {
@@ -25,9 +26,18 @@ export const deleteMessage = onCall(async (request) => {
     .collection("messages")
     .doc(messageId);
 
-  await messageRef.update({
-    deletedFor: FieldValue.arrayUnion(uid),
-  });
+  if (deleteForAll) {
+    const messageSnap = await messageRef.get();
+    const senderId = messageSnap.data()?.senderId;
+    if (senderId !== uid) {
+      throw new HttpsError("permission-denied", "No puede borrar para todos");
+    }
+    await messageRef.delete();
+  } else {
+    await messageRef.update({
+      deletedFor: FieldValue.arrayUnion(uid),
+    });
+  }
 
   return {success: true};
 });

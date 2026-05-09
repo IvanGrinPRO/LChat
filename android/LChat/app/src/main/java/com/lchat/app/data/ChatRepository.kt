@@ -68,7 +68,6 @@ class ChatRepository(
                     ?.mapNotNull { doc ->
                         doc.toObject(Message::class.java)?.copy(id = doc.id)
                     }
-                    // Filtrar mensajes borrados para el usuario actual
                     ?.filter { currentUid !in it.deletedFor }
                     ?: emptyList()
                 trySend(messages)
@@ -127,11 +126,12 @@ class ChatRepository(
         }
     }
 
-    suspend fun deleteMessage(chatId: String, messageId: String): Result<Unit> {
+    suspend fun deleteMessage(chatId: String, messageId: String, deleteForAll: Boolean = false): Result<Unit> {
         return try {
             val data = hashMapOf(
                 "chatId" to chatId,
-                "messageId" to messageId
+                "messageId" to messageId,
+                "deleteForAll" to deleteForAll
             )
             functions.getHttpsCallable("deleteMessage")
                 .call(data)

@@ -67,9 +67,9 @@ class ChatViewModel(
         }
     }
 
-    fun deleteMessage(messageId: String) {
+    fun deleteMessage(messageId: String, deleteForAll: Boolean = false) {
         viewModelScope.launch {
-            chatRepository.deleteMessage(chatId, messageId)
+            chatRepository.deleteMessage(chatId, messageId, deleteForAll)
         }
     }
 
