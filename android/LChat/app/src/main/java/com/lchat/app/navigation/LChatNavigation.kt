@@ -16,8 +16,8 @@ import com.lchat.app.chats.NewChatScreen
 import com.lchat.app.data.UserRepository
 import kotlinx.coroutines.launch
 import com.lchat.app.profile.ProfileScreen
+import com.lchat.app.profile.UserProfileScreen
 
-// URL guardada en memoria para evitar problemas de encoding en Navigation
 object FullscreenImageHolder {
     var url: String = ""
 }
@@ -30,8 +30,10 @@ object Routes {
     const val CHAT = "chat/{chatId}/{otherUid}"
     const val PROFILE = "profile"
     const val FULLSCREEN_IMAGE = "fullscreen_image"
+    const val USER_PROFILE = "user_profile/{uid}"
 
     fun chat(chatId: String, otherUid: String) = "chat/$chatId/$otherUid"
+    fun userProfile(uid: String) = "user_profile/$uid"
 }
 
 @Composable
@@ -105,12 +107,26 @@ fun LChatNavigation() {
 
         composable(Routes.NEW_CHAT) {
             NewChatScreen(
-                onChatCreated = { chatId, otherUid ->
+                onUserClick = { uid ->
+                    navController.navigate(Routes.userProfile(uid))
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.USER_PROFILE) { backStackEntry ->
+            val uid = backStackEntry.arguments?.getString("uid") ?: return@composable
+            UserProfileScreen(
+                uid = uid,
+                onBack = { navController.popBackStack() },
+                onChatOpen = { chatId, otherUid ->
                     navController.navigate(Routes.chat(chatId, otherUid)) {
                         popUpTo(Routes.CHATS)
                     }
                 },
-                onBack = { navController.popBackStack() }
+                onFullscreenImage = {
+                    navController.navigate(Routes.FULLSCREEN_IMAGE)
+                }
             )
         }
 
@@ -124,6 +140,9 @@ fun LChatNavigation() {
                 onImageClick = { url ->
                     FullscreenImageHolder.url = url
                     navController.navigate(Routes.FULLSCREEN_IMAGE)
+                },
+                onProfileClick = { uid ->
+                    navController.navigate(Routes.userProfile(uid))
                 }
             )
         }

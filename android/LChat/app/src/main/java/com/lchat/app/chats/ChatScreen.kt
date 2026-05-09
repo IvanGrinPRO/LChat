@@ -75,6 +75,7 @@ import com.lchat.app.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+// Formatea bytes en KB/MB legible
 private fun formatFileSize(bytes: Long): String {
     return when {
         bytes >= 1_048_576 -> "%.1f MB".format(bytes / 1_048_576.0)
@@ -90,6 +91,7 @@ fun ChatScreen(
     otherUid: String,
     onBack: () -> Unit,
     onImageClick: (String) -> Unit = {},
+    onProfileClick: (uid: String) -> Unit = {},
     viewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(chatId, otherUid))
 ) {
     val messages by viewModel.messages.collectAsState()
@@ -100,12 +102,14 @@ fun ChatScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
 
+    // Selector de foto
     val photoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let { viewModel.sendImage(it) }
     }
 
+    // Selector de archivo genérico
     val fileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -123,6 +127,7 @@ fun ChatScreen(
             }
         }
 
+        // Límite 20MB del contrato
         if (fileSize > 20 * 1024 * 1024) return@rememberLauncherForActivityResult
 
         viewModel.sendFile(uri, fileName, fileSize)
@@ -144,7 +149,9 @@ fun ChatScreen(
             username = otherUser?.username?.ifEmpty { otherUser?.email } ?: "...",
             avatarUrl = otherUser?.avatarUrl,
             isOnline = otherUser?.isOnline == true,
-            onBack = onBack
+            onBack = onBack,
+            onAvatarClick = { onImageClick(otherUser?.avatarUrl ?: return@ChatHeader) },
+            onUsernameClick = { onProfileClick(otherUid) }
         )
 
         LazyColumn(
@@ -198,10 +205,11 @@ fun ChatScreen(
         ) {
             Column(modifier = Modifier.padding(bottom = 32.dp)) {
 
+                // Завантажити (тільки для фото і файлів)
                 if (msg.type == "image" || msg.type == "file") {
                     MenuOption(
                         icon = Icons.Default.Download,
-                        label = "Descargar",
+                        label = "Завантажити",
                         iconTint = MaterialTheme.colorScheme.onSurface
                     ) {
                         val url = msg.fileUrl ?: return@MenuOption
@@ -215,20 +223,22 @@ fun ChatScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                 }
 
+                // Видалити для мене
                 MenuOption(
                     icon = Icons.Default.Delete,
-                    label = "Eliminar para mi",
+                    label = "Видалити для мене",
                     iconTint = NeuAccent
                 ) {
                     viewModel.deleteMessage(msg.id, deleteForAll = false)
                     menuMessage = null
                 }
 
+                // Видалити для всіх (тільки свої повідомлення)
                 if (msg.senderId == viewModel.currentUid) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                     MenuOption(
                         icon = Icons.Default.DeleteForever,
-                        label = "Eliminar para todos",
+                        label = "Видалити для всіх",
                         iconTint = NeuAccent
                     ) {
                         viewModel.deleteMessage(msg.id, deleteForAll = true)
@@ -274,7 +284,9 @@ private fun ChatHeader(
     username: String,
     avatarUrl: String?,
     isOnline: Boolean,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onAvatarClick: () -> Unit,
+    onUsernameClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -303,7 +315,8 @@ private fun ChatHeader(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(NeuSurface),
+                .background(NeuSurface)
+                .clickable { onAvatarClick() },
             contentAlignment = Alignment.Center
         ) {
             if (avatarUrl != null) {
@@ -324,7 +337,7 @@ private fun ChatHeader(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        Column {
+        Column(modifier = Modifier.clickable { onUsernameClick() }) {
             Text(
                 text = username,
                 style = MaterialTheme.typography.titleMedium,

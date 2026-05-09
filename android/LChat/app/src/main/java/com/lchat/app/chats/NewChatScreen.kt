@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,20 +43,12 @@ import com.lchat.app.ui.theme.TextSecondary
 
 @Composable
 fun NewChatScreen(
-    onChatCreated: (chatId: String, otherUid: String) -> Unit,
+    onUserClick: (uid: String) -> Unit,
     onBack: () -> Unit,
     viewModel: NewChatViewModel = viewModel()
 ) {
     val users by viewModel.users.collectAsState()
-    val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-
-    LaunchedEffect(uiState) {
-        if (uiState is NewChatUiState.Created) {
-            val created = uiState as NewChatUiState.Created
-            onChatCreated(created.chatId, created.otherUid)
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -107,21 +98,6 @@ fun NewChatScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        if (uiState is NewChatUiState.Creating) {
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = NeuAccent)
-            }
-        }
-
-        if (uiState is NewChatUiState.Error) {
-            Text(
-                text = (uiState as NewChatUiState.Error).message,
-                color = NeuAccent,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 24.dp)
-            )
-        }
-
         when {
             searchQuery.isBlank() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -149,8 +125,7 @@ fun NewChatScreen(
                     items(users, key = { it.uid }) { user ->
                         UserItem(
                             user = user,
-                            enabled = uiState !is NewChatUiState.Creating,
-                            onClick = { viewModel.createChat(user.uid) }
+                            onClick = { onUserClick(user.uid) }
                         )
                     }
                 }
@@ -162,14 +137,13 @@ fun NewChatScreen(
 @Composable
 private fun UserItem(
     user: User,
-    enabled: Boolean,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .neumorphic(shape = RoundedCornerShape(20.dp))
-            .clickable(enabled = enabled) { onClick() }
+            .clickable { onClick() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
