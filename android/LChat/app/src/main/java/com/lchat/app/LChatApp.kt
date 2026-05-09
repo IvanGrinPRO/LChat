@@ -1,6 +1,8 @@
 package com.lchat.app
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.os.Build
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -26,7 +28,20 @@ class LChatApp : Application() {
         if (BuildConfig.DEBUG) {
             connectToEmulators()
         }
+        createNotificationChannel()
         setupPresence()
+    }
+
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(
+            LChatMessagingService.CHANNEL_ID,
+            "Mensajes",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Notificaciones de nuevos mensajes"
+        }
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        manager.createNotificationChannel(channel)
     }
 
     private fun connectToEmulators() {

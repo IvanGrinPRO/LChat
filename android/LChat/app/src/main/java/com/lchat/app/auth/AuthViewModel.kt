@@ -2,13 +2,17 @@ package com.lchat.app.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.messaging.FirebaseMessaging
+import com.lchat.app.data.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class AuthViewModel(
-    private val repository: AuthRepository = AuthRepository()
+    private val repository: AuthRepository = AuthRepository(),
+    private val userRepository: UserRepository = UserRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -23,7 +27,10 @@ class AuthViewModel(
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
             repository.signIn(email.trim(), password)
-                .onSuccess { _uiState.value = AuthUiState.Success }
+                .onSuccess {
+                    guardarTokenFcm()
+                    _uiState.value = AuthUiState.Success
+                }
                 .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Error desconocido") }
         }
     }
@@ -39,6 +46,7 @@ class AuthViewModel(
                         repository.updateUsername(user.uid, username.trim())
                     } catch (_: Exception) {
                     }
+                    guardarTokenFcm()
                     _uiState.value = AuthUiState.Success
                 }
                 .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Error desconocido") }
@@ -47,6 +55,15 @@ class AuthViewModel(
 
     fun resetState() {
         _uiState.value = AuthUiState.Idle
+    }
+
+    private fun guardarTokenFcm() {
+        viewModelScope.launch {
+            try {
+                val token = FirebaseMessaging.getInstance().token.await()
+                userRepository.saveFcmToken(token)
+            } catch (_: Exception) {}
+        }
     }
 
     private fun validateLogin(email: String, password: String): Boolean {

@@ -51,6 +51,24 @@ class UserRepository(
             null
         }
     }
+    suspend fun saveFcmToken(token: String) {
+        if (currentUid.isEmpty()) return
+        try {
+            firestore.collection("users").document(currentUid)
+                .update("fcmTokens", com.google.firebase.firestore.FieldValue.arrayUnion(token))
+                .await()
+        } catch (_: Exception) {}
+    }
+
+    suspend fun removeFcmToken(token: String) {
+        if (currentUid.isEmpty()) return
+        try {
+            firestore.collection("users").document(currentUid)
+                .update("fcmTokens", com.google.firebase.firestore.FieldValue.arrayRemove(token))
+                .await()
+        } catch (_: Exception) {}
+    }
+
     suspend fun setOnline(isOnline: Boolean) {
         if (currentUid.isEmpty()) return
         try {
