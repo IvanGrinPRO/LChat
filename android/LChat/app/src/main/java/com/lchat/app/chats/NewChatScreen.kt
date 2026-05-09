@@ -17,7 +17,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,9 +30,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.lchat.app.data.User
+import com.lchat.app.ui.components.NeumorphicTextField
 import com.lchat.app.ui.neumorphism.neumorphic
 import com.lchat.app.ui.theme.NeuAccent
 import com.lchat.app.ui.theme.NeuSurface
@@ -44,6 +50,7 @@ fun NewChatScreen(
 ) {
     val users by viewModel.users.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
 
     LaunchedEffect(uiState) {
         if (uiState is NewChatUiState.Created) {
@@ -71,7 +78,12 @@ fun NewChatScreen(
                     .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("<", color = NeuAccent, style = MaterialTheme.typography.titleMedium)
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Volver",
+                    tint = NeuAccent,
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -83,13 +95,20 @@ fun NewChatScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+            NeumorphicTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.onSearchQueryChange(it) },
+                placeholder = "Buscar por username..."
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         if (uiState is NewChatUiState.Creating) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = NeuAccent)
             }
         }
@@ -104,13 +123,19 @@ fun NewChatScreen(
         }
 
         when {
-            users.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+            searchQuery.isBlank() -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = "No hay otros usuarios registrados",
+                        text = "Escribe un username para buscar",
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+            users.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "No se encontró ningún usuario",
                         color = TextSecondary,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -148,7 +173,6 @@ private fun UserItem(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Avatar
         Box {
             Box(
                 modifier = Modifier
@@ -157,11 +181,20 @@ private fun UserItem(
                     .background(NeuSurface),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = user.username.take(1).uppercase().ifEmpty { "?" },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = NeuAccent
-                )
+                if (user.avatarUrl != null) {
+                    AsyncImage(
+                        model = user.avatarUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = user.username.take(1).uppercase().ifEmpty { "?" },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = NeuAccent
+                    )
+                }
             }
             if (user.isOnline) {
                 Box(

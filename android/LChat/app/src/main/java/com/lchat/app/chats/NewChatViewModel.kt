@@ -8,6 +8,7 @@ import com.lchat.app.data.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 sealed interface NewChatUiState {
@@ -22,8 +23,12 @@ class NewChatViewModel(
     private val chatRepository: ChatRepository = ChatRepository()
 ) : ViewModel() {
 
-    private val _users = MutableStateFlow<List<User>>(emptyList())
-    val users: StateFlow<List<User>> = _users.asStateFlow()
+    private val _allUsers = MutableStateFlow<List<User>>(emptyList())
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _filteredUsers = MutableStateFlow<List<User>>(emptyList())
+    val users: StateFlow<List<User>> = _filteredUsers.asStateFlow()
 
     private val _uiState = MutableStateFlow<NewChatUiState>(NewChatUiState.Idle)
     val uiState: StateFlow<NewChatUiState> = _uiState.asStateFlow()
@@ -31,9 +36,21 @@ class NewChatViewModel(
     init {
         viewModelScope.launch {
             userRepository.getAllUsersExceptCurrent().collect { userList ->
-                _users.value = userList
+                _allUsers.value = userList
             }
         }
+        viewModelScope.launch {
+            combine(_allUsers, _searchQuery) { users, query ->
+                if (query.isBlank()) emptyList()
+                else users.filter {
+                    it.username.contains(query.trim(), ignoreCase = true)
+                }
+            }.collect { _filteredUsers.value = it }
+        }
+    }
+
+    fun onSearchQueryChange(query: String) {
+        _searchQuery.value = query
     }
 
     fun createChat(otherUid: String) {
