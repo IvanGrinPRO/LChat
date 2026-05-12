@@ -39,6 +39,8 @@ import com.lchat.app.ui.neumorphism.neumorphic
 import com.lchat.app.ui.theme.NeuAccent
 import com.lchat.app.ui.theme.NeuSurface
 import com.lchat.app.ui.theme.TextSecondary
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 
 @Composable
 fun ProfileScreen(
@@ -73,10 +75,12 @@ fun ProfileScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "Perfil",
@@ -131,7 +135,7 @@ fun ProfileScreen(
             color = TextSecondary
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         NeumorphicTextField(
             value = editUsername,
@@ -151,7 +155,7 @@ fun ProfileScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         if (isEditing) {
             NeumorphicButton(

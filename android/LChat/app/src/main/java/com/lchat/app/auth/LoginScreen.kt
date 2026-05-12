@@ -28,6 +28,8 @@ import com.lchat.app.ui.components.NeumorphicButton
 import com.lchat.app.ui.components.NeumorphicTextField
 import com.lchat.app.ui.theme.NeuAccent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.lchat.app.R
@@ -53,6 +55,8 @@ fun LoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(24.dp)
     ) {
         Column(

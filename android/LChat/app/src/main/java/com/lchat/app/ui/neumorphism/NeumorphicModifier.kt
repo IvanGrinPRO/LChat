@@ -29,7 +29,7 @@ fun Modifier.neumorphic(
     color: Color = NeuSurface,
     lightShadowColor: Color = NeuShadowLight,
     darkShadowColor: Color = NeuShadowDark,
-    elevation: Dp = 6.dp
+    elevation: Dp = 3.dp
 ): Modifier = composed {
     val density = androidx.compose.ui.platform.LocalDensity.current
     val elevationPx = with(density) { elevation.toPx() }

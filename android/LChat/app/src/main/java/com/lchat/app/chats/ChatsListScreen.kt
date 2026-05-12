@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +37,8 @@ import com.lchat.app.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 
@@ -54,7 +57,9 @@ fun ChatsListScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(top = 48.dp)
+            .statusBarsPadding()
+            .padding(top = 16.dp)
+            .navigationBarsPadding()
     ) {
         Row(
             modifier = Modifier
@@ -118,6 +123,7 @@ fun ChatsListScreen(
             else -> {
                 LazyColumn(
                     modifier = Modifier.padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(chats, key = { it.chat.id }) { preview ->

@@ -22,8 +22,13 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -75,7 +80,6 @@ import com.lchat.app.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-// Formatea bytes en KB/MB legible
 private fun formatFileSize(bytes: Long): String {
     return when {
         bytes >= 1_048_576 -> "%.1f MB".format(bytes / 1_048_576.0)
@@ -102,14 +106,12 @@ fun ChatScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
 
-    // Selector de foto
     val photoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let { viewModel.sendImage(it) }
     }
 
-    // Selector de archivo genérico
     val fileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -127,7 +129,6 @@ fun ChatScreen(
             }
         }
 
-        // Límite 20MB del contrato
         if (fileSize > 20 * 1024 * 1024) return@rememberLauncherForActivityResult
 
         viewModel.sendFile(uri, fileName, fileSize)
@@ -143,7 +144,7 @@ fun ChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .imePadding()
+            .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime))
     ) {
         ChatHeader(
             username = otherUser?.username?.ifEmpty { otherUser?.email } ?: "...",
@@ -205,11 +206,10 @@ fun ChatScreen(
         ) {
             Column(modifier = Modifier.padding(bottom = 32.dp)) {
 
-                // Завантажити (тільки для фото і файлів)
                 if (msg.type == "image" || msg.type == "file") {
                     MenuOption(
                         icon = Icons.Default.Download,
-                        label = "Завантажити",
+                        label = "Descargar",
                         iconTint = MaterialTheme.colorScheme.onSurface
                     ) {
                         val url = msg.fileUrl ?: return@MenuOption
@@ -223,22 +223,20 @@ fun ChatScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                 }
 
-                // Видалити для мене
                 MenuOption(
                     icon = Icons.Default.Delete,
-                    label = "Видалити для мене",
+                    label = "Eliminar para mi",
                     iconTint = NeuAccent
                 ) {
                     viewModel.deleteMessage(msg.id, deleteForAll = false)
                     menuMessage = null
                 }
 
-                // Видалити для всіх (тільки свої повідомлення)
                 if (msg.senderId == viewModel.currentUid) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                     MenuOption(
                         icon = Icons.Default.DeleteForever,
-                        label = "Видалити для всіх",
+                        label = "Eliminar para todos",
                         iconTint = NeuAccent
                     ) {
                         viewModel.deleteMessage(msg.id, deleteForAll = true)
@@ -291,7 +289,7 @@ private fun ChatHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 48.dp, bottom = 12.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(

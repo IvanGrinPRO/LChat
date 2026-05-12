@@ -33,6 +33,8 @@ import com.lchat.app.ui.components.NeumorphicButton
 import com.lchat.app.ui.neumorphism.neumorphic
 import com.lchat.app.ui.theme.NeuAccent
 import com.lchat.app.ui.theme.NeuSurface
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 
 @Composable
 fun UserProfileScreen(
@@ -56,6 +58,8 @@ fun UserProfileScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
@@ -63,7 +67,7 @@ fun UserProfileScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(52.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             Box(
                 modifier = Modifier
@@ -133,7 +137,7 @@ fun UserProfileScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 52.dp, start = 16.dp)
+                .padding(top = 8.dp, start = 16.dp)
                 .size(44.dp)
                 .neumorphic(shape = CircleShape)
                 .clickable { onBack() },

@@ -10,7 +10,7 @@ val NeuSurface = Color(0xFF24242E)
 
 // Sombras
 val NeuShadowDark = Color(0xFF000000)      // sombra inferior derecha — negro puro
-val NeuShadowLight = Color(0xFF35353F)     // luz superior izquierda — bien visible
+val NeuShadowLight = Color(0xFF2C2C36)     // luz superior izquierda — bien visible
 
 // Acento
 val NeuAccent = Color(0xFFFF4D5E)
