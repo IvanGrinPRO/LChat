@@ -17,7 +17,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -82,7 +86,12 @@ fun ChatsListScreen(
                         .clickable { onNewChatClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("+", color = NeuAccent, style = MaterialTheme.typography.titleMedium)
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Nuevo chat",
+                        tint = NeuAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
 
                 Box(
@@ -92,7 +101,12 @@ fun ChatsListScreen(
                         .clickable { onProfileClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("P", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Perfil",
+                        tint = NeuAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
