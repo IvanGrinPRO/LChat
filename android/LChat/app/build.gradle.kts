@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.coil.compose)
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // Firebase
     implementation(platform(libs.firebase.bom))

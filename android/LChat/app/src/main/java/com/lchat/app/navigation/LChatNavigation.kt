@@ -15,6 +15,7 @@ import com.lchat.app.chats.FullscreenImageScreen
 import com.lchat.app.chats.NewChatScreen
 import com.lchat.app.data.UserRepository
 import kotlinx.coroutines.launch
+import com.lchat.app.SplashScreen
 import com.lchat.app.profile.ProfileScreen
 import com.lchat.app.profile.UserProfileScreen
 
@@ -23,6 +24,7 @@ object FullscreenImageHolder {
 }
 
 object Routes {
+    const val SPLASH = "splash"
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val CHATS = "chats"
@@ -40,16 +42,21 @@ object Routes {
 fun LChatNavigation() {
     val navController = rememberNavController()
 
-    val startDestination = if (Firebase.auth.currentUser != null) {
-        Routes.CHATS
-    } else {
-        Routes.LOGIN
-    }
 
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = Routes.SPLASH
     ) {
+        composable(Routes.SPLASH) {
+            SplashScreen(
+                onFinished = {
+                    val dest = if (Firebase.auth.currentUser != null) Routes.CHATS else Routes.LOGIN
+                    navController.navigate(dest) {
+                        popUpTo(Routes.SPLASH) { inclusive = true }
+                    }
+                }
+            )
+        }
         composable(Routes.LOGIN) {
             LoginScreen(
                 onLoginSuccess = {

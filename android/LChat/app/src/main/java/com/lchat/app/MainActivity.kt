@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.lchat.app.navigation.LChatNavigation
 import com.lchat.app.ui.theme.LChatTheme
 
@@ -19,6 +20,7 @@ class MainActivity : ComponentActivity() {
     ) { /* sin acción si deniega — el sistema manejará el flujo */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         solicitarPermisoNotificaciones()
         enableEdgeToEdge()
