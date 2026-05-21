@@ -89,8 +89,12 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Error("Username: 3-30 caracteres")
             return false
         }
-        if (!username.matches(Regex("^[a-zA-Z0-9_-]+$"))) {
-            _uiState.value = AuthUiState.Error("Username: solo letras, números, _ y -")
+        if (!username.matches(Regex("^[a-zA-Z0-9ñÑ_-]+$"))) {
+            _uiState.value = AuthUiState.Error("Username: solo letras, números, ñ, _ y -")
+            return false
+        }
+        if (!username.any { it.isLetter() }) {
+            _uiState.value = AuthUiState.Error("Username: mínimo una letra")
             return false
         }
         return validateLogin(email, password)

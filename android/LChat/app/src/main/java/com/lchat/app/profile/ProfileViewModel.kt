@@ -46,8 +46,12 @@ class ProfileViewModel(
             _message.value = "Username: 3-30 caracteres"
             return
         }
-        if (!trimmed.matches(Regex("^[a-zA-Z0-9_-]+$"))) {
-            _message.value = "Username: solo letras, números, _ y -"
+        if (!trimmed.matches(Regex("^[a-zA-Z0-9ñÑ_-]+$"))) {
+            _message.value = "Username: solo letras, números, ñ, _ y -"
+            return
+        }
+        if (!trimmed.any { it.isLetter() }) {
+            _message.value = "Username: mínimo una letra"
             return
         }
         viewModelScope.launch {
