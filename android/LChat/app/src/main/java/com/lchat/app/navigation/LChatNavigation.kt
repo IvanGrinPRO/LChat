@@ -17,6 +17,7 @@ import com.lchat.app.data.UserRepository
 import kotlinx.coroutines.launch
 import com.lchat.app.SplashScreen
 import com.lchat.app.profile.ProfileScreen
+import com.lchat.app.profile.SettingsScreen
 import com.lchat.app.profile.UserProfileScreen
 
 object FullscreenImageHolder {
@@ -31,6 +32,7 @@ object Routes {
     const val NEW_CHAT = "new_chat"
     const val CHAT = "chat/{chatId}/{otherUid}"
     const val PROFILE = "profile"
+    const val SETTINGS = "settings"
     const val FULLSCREEN_IMAGE = "fullscreen_image"
     const val USER_PROFILE = "user_profile/{uid}"
 
@@ -171,6 +173,18 @@ fun LChatNavigation() {
                         navController.navigate(Routes.LOGIN) {
                             popUpTo(0) { inclusive = true }
                         }
+                    }
+                },
+                onSettings = { navController.navigate(Routes.SETTINGS) }
+            )
+        }
+
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onAccountDeleted = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )

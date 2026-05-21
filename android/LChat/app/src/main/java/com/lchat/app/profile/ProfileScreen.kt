@@ -39,13 +39,18 @@ import com.lchat.app.ui.neumorphism.neumorphic
 import com.lchat.app.ui.theme.NeuAccent
 import com.lchat.app.ui.theme.NeuSurface
 import com.lchat.app.ui.theme.TextSecondary
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 
 @Composable
 fun ProfileScreen(
     onBack: () -> Unit,
     onLogout: () -> Unit,
+    onSettings: () -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
     val user by viewModel.user.collectAsState()
@@ -82,11 +87,31 @@ fun ProfileScreen(
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
-        Text(
-            text = "Perfil",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Perfil",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .neumorphic(shape = androidx.compose.foundation.shape.CircleShape)
+                    .clickable { onSettings() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Ajustes",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 

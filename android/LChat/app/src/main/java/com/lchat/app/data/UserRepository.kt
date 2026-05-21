@@ -23,7 +23,7 @@ class UserRepository(
                 }
                 val users = snapshot?.documents
                     ?.mapNotNull { it.toObject(User::class.java) }
-                    ?.filter { it.uid != currentUid }
+                    ?.filter { it.uid != currentUid && !it.isDeleted }
                     ?: emptyList()
                 trySend(users)
             }

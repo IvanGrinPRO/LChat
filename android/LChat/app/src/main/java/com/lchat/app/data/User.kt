@@ -10,5 +10,8 @@ data class User(
     @get:PropertyName("isOnline")
     @set:PropertyName("isOnline")
     var isOnline: Boolean = false,
-    val lastSeen: com.google.firebase.Timestamp? = null
+    val lastSeen: com.google.firebase.Timestamp? = null,
+    @get:PropertyName("isDeleted")
+    @set:PropertyName("isDeleted")
+    var isDeleted: Boolean = false
 )
