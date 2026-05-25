@@ -51,6 +51,27 @@ class AuthRepository(
         }
     }
 
+    suspend fun sendEmailVerification(): Result<Unit> {
+        return try {
+            auth.currentUser?.sendEmailVerification()?.await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun reloadAndCheckVerified(): Boolean {
+        return try {
+            auth.currentUser?.reload()?.await()
+            auth.currentUser?.isEmailVerified == true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    val currentUserEmail: String
+        get() = auth.currentUser?.email ?: ""
+
     fun signOut() {
         auth.signOut()
     }

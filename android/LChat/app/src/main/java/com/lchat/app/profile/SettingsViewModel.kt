@@ -54,8 +54,12 @@ class SettingsViewModel : ViewModel() {
                     )
                 ).await()
 
-                // eliminar usuario de Auth
-                auth.currentUser?.delete()?.await()
+                // eliminar usuario de Auth (si falla, hacer signOut igualmente)
+                try {
+                    auth.currentUser?.delete()?.await()
+                } catch (_: Exception) {
+                    auth.signOut()
+                }
 
                 _uiState.value = SettingsUiState.Deleted
             } catch (e: Exception) {

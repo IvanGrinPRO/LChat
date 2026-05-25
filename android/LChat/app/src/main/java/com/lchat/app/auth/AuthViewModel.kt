@@ -28,6 +28,13 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Loading
             repository.signIn(email.trim(), password)
                 .onSuccess {
+                    //if (repository.reloadAndCheckVerified()) {
+                    //    guardarTokenFcm()
+                    //    _uiState.value = AuthUiState.Success
+                    //} else {
+                    //    repository.sendEmailVerification()
+                    //    _uiState.value = AuthUiState.VerificationPending
+                   // }
                     guardarTokenFcm()
                     _uiState.value = AuthUiState.Success
                 }
@@ -42,22 +49,43 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Loading
 
             if (userRepository.isUsernameTaken(username.trim())) {
-                _uiState.value = AuthUiState.Error("Username вже зайнятий")
+                _uiState.value = AuthUiState.Error("Username ya está en uso")
                 return@launch
             }
 
             repository.signUp(email.trim(), password)
                 .onSuccess { user ->
-                    try {
-                        repository.updateUsername(user.uid, username.trim())
-                    } catch (_: Exception) {
-                    }
+                    try { repository.updateUsername(user.uid, username.trim()) } catch (_: Exception) {}
+                    //repository.sendEmailVerification()
+                    //_uiState.value = AuthUiState.VerificationPending
                     guardarTokenFcm()
                     _uiState.value = AuthUiState.Success
                 }
                 .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Error desconocido") }
         }
     }
+
+    fun checkVerification() {
+        viewModelScope.launch {
+            _uiState.value = AuthUiState.Loading
+            if (repository.reloadAndCheckVerified()) {
+                guardarTokenFcm()
+                _uiState.value = AuthUiState.Success
+            } else {
+                _uiState.value = AuthUiState.Error("Email no verificado aún")
+            }
+        }
+    }
+
+    fun resendVerification() {
+        viewModelScope.launch {
+            repository.sendEmailVerification()
+            _uiState.value = AuthUiState.VerificationPending
+        }
+    }
+
+    val currentUserEmail: String
+        get() = repository.currentUserEmail
 
     fun resetState() {
         _uiState.value = AuthUiState.Idle

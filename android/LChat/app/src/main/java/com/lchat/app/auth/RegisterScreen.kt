@@ -33,6 +33,7 @@ import com.lchat.app.ui.theme.NeuAccent
 @Composable
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
+    onVerificationPending: () -> Unit,
     onNavigateToLogin: () -> Unit,
     viewModel: AuthViewModel = viewModel()
 ) {
@@ -44,6 +45,10 @@ fun RegisterScreen(
     LaunchedEffect(uiState) {
         if (uiState is AuthUiState.Success) {
             onRegisterSuccess()
+            viewModel.resetState()
+        }
+        if (uiState is AuthUiState.VerificationPending) {
+            onVerificationPending()
             viewModel.resetState()
         }
     }
@@ -73,7 +78,7 @@ fun RegisterScreen(
 
             NeumorphicTextField(
                 value = username,
-                onValueChange = { username = it },
+                onValueChange = { username = it.replace(" ", "") },
                 placeholder = "Username"
             )
 

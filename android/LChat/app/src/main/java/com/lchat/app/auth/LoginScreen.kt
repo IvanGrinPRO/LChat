@@ -37,6 +37,7 @@ import com.lchat.app.R
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
+    onVerificationPending: () -> Unit,
     onNavigateToRegister: () -> Unit,
     viewModel: AuthViewModel = viewModel()
 ) {
@@ -47,6 +48,10 @@ fun LoginScreen(
     LaunchedEffect(uiState) {
         if (uiState is AuthUiState.Success) {
             onLoginSuccess()
+            viewModel.resetState()
+        }
+        if (uiState is AuthUiState.VerificationPending) {
+            onVerificationPending()
             viewModel.resetState()
         }
     }

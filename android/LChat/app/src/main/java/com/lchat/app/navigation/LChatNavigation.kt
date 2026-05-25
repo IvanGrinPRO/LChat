@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.lchat.app.auth.EmailVerificationScreen
 import com.lchat.app.auth.LoginScreen
 import com.lchat.app.auth.RegisterScreen
 import com.lchat.app.chats.ChatScreen
@@ -28,6 +29,7 @@ object Routes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
     const val REGISTER = "register"
+    const val EMAIL_VERIFICATION = "email_verification"
     const val CHATS = "chats"
     const val NEW_CHAT = "new_chat"
     const val CHAT = "chat/{chatId}/{otherUid}"
@@ -52,7 +54,12 @@ fun LChatNavigation() {
         composable(Routes.SPLASH) {
             SplashScreen(
                 onFinished = {
-                    val dest = if (Firebase.auth.currentUser != null) Routes.CHATS else Routes.LOGIN
+                    val user = Firebase.auth.currentUser
+                    val dest = when {
+                        user == null -> Routes.LOGIN
+                       // !user.isEmailVerified -> Routes.EMAIL_VERIFICATION
+                        else -> Routes.CHATS
+                    }
                     navController.navigate(dest) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                     }
@@ -66,6 +73,11 @@ fun LChatNavigation() {
                         UserRepository().setOnline(true)
                     }
                     navController.navigate(Routes.CHATS) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                },
+                onVerificationPending = {
+                    navController.navigate(Routes.EMAIL_VERIFICATION) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
@@ -85,8 +97,26 @@ fun LChatNavigation() {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
+                onVerificationPending = {
+                    navController.navigate(Routes.EMAIL_VERIFICATION) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                },
                 onNavigateToLogin = {
                     navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Routes.EMAIL_VERIFICATION) {
+            EmailVerificationScreen(
+                onVerified = {
+                    kotlinx.coroutines.MainScope().launch {
+                        UserRepository().setOnline(true)
+                    }
+                    navController.navigate(Routes.CHATS) {
+                        popUpTo(Routes.EMAIL_VERIFICATION) { inclusive = true }
+                    }
                 }
             )
         }
