@@ -3,7 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // usuarios
     match /users/{userId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == userId;
@@ -11,15 +10,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // chats
     match /chats/{chatId} {
       allow read: if request.auth != null &&
         request.auth.uid in resource.data.members;
       allow create: if false;
-      allow update: if false;
+      allow update: if request.auth != null &&
+        request.auth.uid in resource.data.members;
       allow delete: if false;
 
-      // mensajes
       match /messages/{messageId} {
         allow read: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members;
@@ -31,13 +29,14 @@ service cloud.firestore {
       }
     }
 
-    // miembros
     match /chat_members/{docId} {
       allow read: if request.auth != null &&
         request.auth.uid == resource.data.userId;
       allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow update: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+      allow delete: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
     }
 
   }

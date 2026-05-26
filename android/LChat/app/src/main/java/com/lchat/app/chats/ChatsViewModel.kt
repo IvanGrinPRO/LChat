@@ -14,9 +14,17 @@ import kotlinx.coroutines.launch
 
 data class ChatPreview(
     val chat: Chat,
-    val otherUser: User,
+    val otherUser: User?,
     val unreadCount: Int = 0
-)
+) {
+    val displayName: String get() = when {
+        chat.type == "group" -> chat.name.ifEmpty { "Grupo" }
+        otherUser != null -> otherUser.username.ifEmpty { otherUser.email }
+        else -> "..."
+    }
+    val isGroup: Boolean get() = chat.type == "group"
+    val navigateUid: String get() = if (isGroup) "group" else otherUser?.uid ?: ""
+}
 
 class ChatsViewModel(
     private val chatRepository: ChatRepository = ChatRepository(),
@@ -44,13 +52,20 @@ class ChatsViewModel(
             chatRepository.getMyChats().collect { chatList ->
                 currentChats = chatList
                 chatList.forEach { chat ->
-                    val otherUid = chat.members.firstOrNull { it != userRepository.currentUid }
-                        ?: return@forEach
-                    if (otherUid !in userJobs) {
-                        userJobs[otherUid] = listenToUser(otherUid)
-                    }
-                    if (chat.id !in unreadJobs) {
-                        unreadJobs[chat.id] = listenToUnread(chat.id)
+                    if (chat.type == "group") {
+                        // grupos: no escuchar usuario individual
+                        if (chat.id !in unreadJobs) {
+                            unreadJobs[chat.id] = listenToUnread(chat.id)
+                        }
+                    } else {
+                        val otherUid = chat.members.firstOrNull { it != userRepository.currentUid }
+                            ?: return@forEach
+                        if (otherUid !in userJobs) {
+                            userJobs[otherUid] = listenToUser(otherUid)
+                        }
+                        if (chat.id !in unreadJobs) {
+                            unreadJobs[chat.id] = listenToUnread(chat.id)
+                        }
                     }
                 }
                 rebuildPreviews()
@@ -81,14 +96,22 @@ class ChatsViewModel(
 
     private fun rebuildPreviews() {
         _chats.value = currentChats.mapNotNull { chat ->
-            val otherUid = chat.members.firstOrNull { it != userRepository.currentUid }
-                ?: return@mapNotNull null
-            val otherUser = usersMap[otherUid] ?: return@mapNotNull null
-            ChatPreview(
-                chat = chat,
-                otherUser = otherUser,
-                unreadCount = unreadMap[chat.id] ?: 0
-            )
+            if (chat.type == "group") {
+                ChatPreview(
+                    chat = chat,
+                    otherUser = null,
+                    unreadCount = unreadMap[chat.id] ?: 0
+                )
+            } else {
+                val otherUid = chat.members.firstOrNull { it != userRepository.currentUid }
+                    ?: return@mapNotNull null
+                val otherUser = usersMap[otherUid] ?: return@mapNotNull null
+                ChatPreview(
+                    chat = chat,
+                    otherUser = otherUser,
+                    unreadCount = unreadMap[chat.id] ?: 0
+                )
+            }
         }
     }
 }

@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -47,6 +48,7 @@ import com.lchat.app.ui.theme.TextSecondary
 @Composable
 fun NewChatScreen(
     onUserClick: (uid: String) -> Unit,
+    onCreateGroup: () -> Unit,
     onBack: () -> Unit,
     viewModel: NewChatViewModel = viewModel()
 ) {
@@ -92,6 +94,32 @@ fun NewChatScreen(
         }
 
         Spacer(modifier = Modifier.height(20.dp))
+
+        // botón crear grupo
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .neumorphic(shape = RoundedCornerShape(16.dp))
+                .clickable { onCreateGroup() }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Group,
+                contentDescription = null,
+                tint = NeuAccent,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "Nuevo grupo",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Box(modifier = Modifier.padding(horizontal = 16.dp)) {
             NeumorphicTextField(

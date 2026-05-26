@@ -96,10 +96,18 @@ fun ChatScreen(
     onBack: () -> Unit,
     onImageClick: (String) -> Unit = {},
     onProfileClick: (uid: String) -> Unit = {},
+    onGroupClick: (chatId: String) -> Unit = {},
     viewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(chatId, otherUid))
 ) {
     val messages by viewModel.messages.collectAsState()
     val otherUser by viewModel.otherUser.collectAsState()
+    val chatName by viewModel.chatName.collectAsState()
+    val chatAvatarUrl by viewModel.chatAvatarUrl.collectAsState()
+    val membersMap by viewModel.membersMap.collectAsState()
+    val isGroup = viewModel.isGroup
+
+    val headerName = if (isGroup) chatName.ifEmpty { "Grupo" }
+    else otherUser?.username?.ifEmpty { otherUser?.email } ?: "..."
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     var menuMessage by remember { mutableStateOf<Message?>(null) }
@@ -147,12 +155,17 @@ fun ChatScreen(
             .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime))
     ) {
         ChatHeader(
-            username = otherUser?.username?.ifEmpty { otherUser?.email } ?: "...",
-            avatarUrl = otherUser?.avatarUrl,
-            isOnline = otherUser?.isOnline == true,
+            username = headerName,
+            avatarUrl = if (isGroup) chatAvatarUrl else otherUser?.avatarUrl,
+            isOnline = !isGroup && otherUser?.isOnline == true,
             onBack = onBack,
-            onAvatarClick = { onImageClick(otherUser?.avatarUrl ?: return@ChatHeader) },
-            onUsernameClick = { onProfileClick(otherUid) }
+            onAvatarClick = {
+                if (!isGroup) onImageClick(otherUser?.avatarUrl ?: return@ChatHeader)
+            },
+            onUsernameClick = {
+                if (isGroup) onGroupClick(chatId)
+                else onProfileClick(otherUid)
+            }
         )
 
         LazyColumn(
@@ -160,7 +173,7 @@ fun ChatScreen(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
@@ -173,7 +186,9 @@ fun ChatScreen(
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                         context.startActivity(intent)
                     },
-                    onImageTap = { url -> onImageClick(url) }
+                    onImageTap = { url -> onImageClick(url) },
+                    senderUser = if (isGroup && message.senderId != viewModel.currentUid)
+                        membersMap[message.senderId] else null
                 )
             }
 
@@ -341,11 +356,13 @@ private fun ChatHeader(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Text(
-                text = if (isOnline) "Online" else "Offline",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (isOnline) OnlineGreen else TextSecondary
-            )
+            if (isOnline) {
+                Text(
+                    text = "Online",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = OnlineGreen
+                )
+            }
         }
     }
 }
@@ -357,91 +374,125 @@ private fun MessageBubble(
     isMine: Boolean,
     onLongClick: () -> Unit,
     onFileTap: (String) -> Unit,
-    onImageTap: (String) -> Unit
+    onImageTap: (String) -> Unit,
+    senderUser: com.lchat.app.data.User? = null
 ) {
-    val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.75f).dp
+    val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.72f).dp
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val isImage = message.type == "image" && message.fileUrl != null
     val isFile = message.type == "file" && message.fileUrl != null
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start
+        horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Top
     ) {
-        Box(
-            modifier = Modifier
-                .widthIn(max = maxWidth)
-                .combinedClickable(
-                    onClick = {
-                        when {
-                            isImage -> message.fileUrl?.let { onImageTap(it) }
-                            isFile  -> message.fileUrl?.let { onFileTap(it) }
-                        }
-                    },
-                    onLongClick = onLongClick
-                )
-                .background(
-                    color = if (isMine) NeuAccent else NeuSurface,
-                    shape = RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (isMine) 16.dp else 4.dp,
-                        bottomEnd = if (isMine) 4.dp else 16.dp
+        // avatar del remitente (solo en grupos, mensajes ajenos)
+        if (senderUser != null) {
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(NeuSurface),
+                contentAlignment = Alignment.Center
+            ) {
+                if (senderUser.avatarUrl != null) {
+                    AsyncImage(
+                        model = senderUser.avatarUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
-                )
-                .padding(
-                    horizontal = if (isImage) 4.dp else 14.dp,
-                    vertical = if (isImage) 4.dp else 10.dp
-                )
-        ) {
-            Column {
-                when {
-                    isImage -> {
-                        AsyncImage(
-                            model = message.fileUrl,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .aspectRatio(1.3f),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                    isFile -> {
-                        FileBubbleContent(
-                            fileName = message.fileName ?: "Archivo",
-                            fileSize = message.fileSize,
-                            isMine = isMine
-                        )
-                    }
-                    else -> {
-                        Text(
-                            text = message.text ?: "",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = if (isMine) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            }
-                        )
-                    }
+                } else {
+                    Text(
+                        text = senderUser.username.take(1).uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NeuAccent
+                    )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+        }
+
+        Column {
+            // nombre del remitente encima de la burbuja
+            if (senderUser != null) {
                 Text(
-                    text = message.createdAt?.let { timeFormat.format(it.toDate()) } ?: "",
+                    text = senderUser.username,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (isMine) {
-                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                    } else {
-                        TextSecondary
-                    },
-                    modifier = Modifier.align(Alignment.End)
+                    color = NeuAccent,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
                 )
+            }
+
+            Box(
+                modifier = Modifier
+                    .widthIn(max = maxWidth)
+                    .combinedClickable(
+                        onClick = {
+                            when {
+                                isImage -> message.fileUrl?.let { onImageTap(it) }
+                                isFile  -> message.fileUrl?.let { onFileTap(it) }
+                            }
+                        },
+                        onLongClick = onLongClick
+                    )
+                    .background(
+                        color = if (isMine) NeuAccent else NeuSurface,
+                        shape = RoundedCornerShape(
+                            topStart = 16.dp,
+                            topEnd = 16.dp,
+                            bottomStart = if (isMine) 16.dp else 4.dp,
+                            bottomEnd = if (isMine) 4.dp else 16.dp
+                        )
+                    )
+                    .padding(
+                        horizontal = if (isImage) 4.dp else 14.dp,
+                        vertical = if (isImage) 4.dp else 10.dp
+                    )
+            ) {
+                Column {
+                    when {
+                        isImage -> {
+                            AsyncImage(
+                                model = message.fileUrl,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .aspectRatio(1.3f),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        isFile -> {
+                            FileBubbleContent(
+                                fileName = message.fileName ?: "Archivo",
+                                fileSize = message.fileSize,
+                                isMine = isMine
+                            )
+                        }
+                        else -> {
+                            Text(
+                                text = message.text ?: "",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (isMine) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = message.createdAt?.let { timeFormat.format(it.toDate()) } ?: "",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isMine) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                        else TextSecondary,
+                        modifier = Modifier.align(Alignment.End)
+                    )
+                }
             }
         }
     }
 }
-
 @Composable
 private fun FileBubbleContent(
     fileName: String,

@@ -22,19 +22,24 @@ export const onMessageCreated = onDocumentCreated(
     });
 
     const chatSnap = await db.collection("chats").doc(chatId).get();
-    const members = chatSnap.data()?.members as string[];
-    const otherUid = members.find((uid) => uid !== message.senderId);
+    const chatData = chatSnap.data();
+    const members = chatData?.members as string[];
+    const isGroup = chatData?.type === "group";
+    const recipients = members.filter((uid) => uid !== message.senderId);
 
-    if (!otherUid) return;
+    if (recipients.length === 0) return;
 
-    const memberRef = db
-      .collection("chat_members")
-      .doc(`${chatId}_${otherUid}`);
+    // incrementar unreadCount para todos los destinatarios
+    await Promise.all(
+      recipients.map((uid) =>
+        db.collection("chat_members")
+          .doc(`${chatId}_${uid}`)
+          .update({unreadCount: FieldValue.increment(1)})
+          .catch(() => null)
+      )
+    );
 
-    await memberRef.update({
-      unreadCount: FieldValue.increment(1),
-    });
-
+    // preparar notificación
     const senderSnap = await db.collection("users").doc(message.senderId).get();
     const senderUsername = senderSnap.data()?.username ?? "LChat";
 
@@ -45,20 +50,27 @@ export const onMessageCreated = onDocumentCreated(
     default: messageBody = message.text ?? "";
     }
 
-    const recipientSnap = await db.collection("users").doc(otherUid).get();
-    const fcmTokens = (recipientSnap.data()?.fcmTokens ?? []) as string[];
+    const notifTitle = isGroup ? (chatData?.name ?? "Grupo") : senderUsername;
+    const notifBody = isGroup ?
+      `${senderUsername}: ${messageBody}` : messageBody;
 
-    if (fcmTokens.length === 0) return;
-
-    const sendPromises = fcmTokens.map((token) =>
-      admin.messaging().send({
-        token,
-        notification: {title: senderUsername, body: messageBody},
-        data: {chatId, otherUid: message.senderId},
-        android: {notification: {channelId: "lchat_messages"}},
-      }).catch(() => null)
+    // enviar FCM a cada destinatario
+    await Promise.all(
+      recipients.map(async (recipientUid) => {
+        const recipientSnap = await db
+          .collection("users").doc(recipientUid).get();
+        const fcmTokens = (recipientSnap.data()?.fcmTokens ?? []) as string[];
+        return Promise.all(
+          fcmTokens.map((token) =>
+            admin.messaging().send({
+              token,
+              notification: {title: notifTitle, body: notifBody},
+              data: {chatId, otherUid: message.senderId},
+              android: {notification: {channelId: "lchat_messages"}},
+            }).catch(() => null)
+          )
+        );
+      })
     );
-
-    await Promise.all(sendPromises);
   }
 );

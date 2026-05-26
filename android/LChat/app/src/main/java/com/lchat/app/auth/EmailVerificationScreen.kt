@@ -91,7 +91,7 @@ fun EmailVerificationScreen(
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
             text = "Pulsa el enlace del correo y luego toca el botón de abajo.",

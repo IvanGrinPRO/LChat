@@ -143,7 +143,7 @@ fun ChatsListScreen(
                     items(chats, key = { it.chat.id }) { preview ->
                         ChatItem(
                             preview = preview,
-                            onClick = { onChatClick(preview.chat.id, preview.otherUser.uid) }
+                            onClick = { onChatClick(preview.chat.id, preview.navigateUid) }
                         )
                     }
                 }
@@ -173,7 +173,22 @@ private fun ChatItem(
                     .background(NeuSurface),
                 contentAlignment = Alignment.Center
             ) {
-                if (preview.otherUser.avatarUrl != null) {
+                if (preview.isGroup) {
+                    if (preview.chat.avatarUrl != null) {
+                        AsyncImage(
+                            model = preview.chat.avatarUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = preview.displayName.take(1).uppercase(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = NeuAccent
+                        )
+                    }
+                } else if (preview.otherUser?.avatarUrl != null) {
                     AsyncImage(
                         model = preview.otherUser.avatarUrl,
                         contentDescription = null,
@@ -182,7 +197,7 @@ private fun ChatItem(
                     )
                 } else {
                     Text(
-                        text = preview.otherUser.username.take(1).uppercase(),
+                        text = preview.otherUser?.username?.take(1)?.uppercase() ?: "?",
                         style = MaterialTheme.typography.titleMedium,
                         color = NeuAccent
                     )
@@ -194,7 +209,7 @@ private fun ChatItem(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = preview.otherUser.username.ifEmpty { preview.otherUser.email },
+                text = preview.displayName,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,

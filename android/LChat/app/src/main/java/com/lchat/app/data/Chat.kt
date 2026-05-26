@@ -5,6 +5,8 @@ import com.google.firebase.Timestamp
 data class Chat(
     val id: String = "",
     val type: String = "private",
+    val name: String = "",
+    val avatarUrl: String? = null,
     val members: List<String> = emptyList(),
     val createdAt: Timestamp? = null,
     val updatedAt: Timestamp? = null,

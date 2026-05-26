@@ -25,12 +25,50 @@ class ChatViewModel(
     private val _otherUser = MutableStateFlow<User?>(null)
     val otherUser: StateFlow<User?> = _otherUser.asStateFlow()
 
+    private val _chatName = MutableStateFlow("")
+    private val _chatAvatarUrl = MutableStateFlow<String?>(null)
+    val chatAvatarUrl: StateFlow<String?> = _chatAvatarUrl.asStateFlow()
+    val chatName: StateFlow<String> = _chatName.asStateFlow()
+
+    private val _membersMap = MutableStateFlow<Map<String, com.lchat.app.data.User>>(emptyMap())
+    val membersMap: StateFlow<Map<String, com.lchat.app.data.User>> = _membersMap.asStateFlow()
+
     val currentUid: String = userRepository.currentUid
+    val isGroup: Boolean = otherUid == "group"
 
     init {
         loadMessages()
-        loadOtherUser()
+        if (isGroup) {
+            loadChatName()
+            loadGroupMembers()
+        } else {
+            loadOtherUser()
+        }
         markAsRead()
+    }
+
+    private fun loadGroupMembers() {
+        viewModelScope.launch {
+            val chat = chatRepository.getChatOnce(chatId) ?: return@launch
+            chat.members.forEach { uid ->
+                launch {
+                    userRepository.getUserById(uid).collect { user ->
+                        if (user != null) {
+                            _membersMap.value = _membersMap.value + (uid to user)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadChatName() {
+        viewModelScope.launch {
+            chatRepository.getChatOnce(chatId)?.let { chat ->
+                _chatName.value = chat.name
+                _chatAvatarUrl.value = chat.avatarUrl
+            }
+        }
     }
 
     private fun loadMessages() {

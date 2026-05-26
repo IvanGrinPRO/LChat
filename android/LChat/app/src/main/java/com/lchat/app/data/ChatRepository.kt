@@ -37,6 +37,22 @@ class ChatRepository(
         awaitClose { listener.remove() }
     }
 
+    suspend fun createGroupChat(name: String, memberUids: List<String>): Result<String> {
+        return try {
+            val result = functions.getHttpsCallable("createGroupChat")
+                .call(hashMapOf(
+                    "name" to name,
+                    "memberUids" to memberUids
+                ))
+                .await()
+            val chatId = (result.data as? Map<*, *>)?.get("chatId") as? String
+                ?: return Result.failure(Exception("No chatId"))
+            Result.success(chatId)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun createChat(otherUid: String): Result<String> {
         return try {
             val data = hashMapOf("targetUid" to otherUid)
@@ -111,6 +127,59 @@ class ChatRepository(
                 .call(data)
                 .await()
             Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addMembersToGroup(chatId: String, newMemberUids: List<String>): Result<Unit> {
+        return try {
+            functions.getHttpsCallable("addGroupMembers")
+                .call(hashMapOf(
+                    "chatId" to chatId,
+                    "newMemberUids" to newMemberUids
+                ))
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun leaveGroup(chatId: String): Result<Unit> {
+        return try {
+            firestore.collection("chats").document(chatId)
+                .update("members", com.google.firebase.firestore.FieldValue.arrayRemove(currentUid))
+                .await()
+            firestore.collection("chat_members").document("${chatId}_${currentUid}")
+                .delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateGroupName(chatId: String, name: String): Result<Unit> {
+        return try {
+            firestore.collection("chats").document(chatId)
+                .update("name", name)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun uploadGroupAvatar(chatId: String, imageUri: android.net.Uri): Result<String> {
+        return try {
+            val storageRef = com.google.firebase.ktx.Firebase.storage.reference
+                .child("chats/$chatId/avatar.jpg")
+            storageRef.putFile(imageUri).await()
+            val url = storageRef.downloadUrl.await().toString()
+            firestore.collection("chats").document(chatId)
+                .update("avatarUrl", url)
+                .await()
+            Result.success(url)
         } catch (e: Exception) {
             Result.failure(e)
         }

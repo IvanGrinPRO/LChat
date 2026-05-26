@@ -10,9 +10,12 @@ import com.google.firebase.ktx.Firebase
 import com.lchat.app.auth.EmailVerificationScreen
 import com.lchat.app.auth.LoginScreen
 import com.lchat.app.auth.RegisterScreen
+import com.lchat.app.chats.AddMembersScreen
 import com.lchat.app.chats.ChatScreen
 import com.lchat.app.chats.ChatsListScreen
+import com.lchat.app.chats.CreateGroupScreen
 import com.lchat.app.chats.FullscreenImageScreen
+import com.lchat.app.chats.GroupProfileScreen
 import com.lchat.app.chats.NewChatScreen
 import com.lchat.app.data.UserRepository
 import kotlinx.coroutines.launch
@@ -32,14 +35,20 @@ object Routes {
     const val EMAIL_VERIFICATION = "email_verification"
     const val CHATS = "chats"
     const val NEW_CHAT = "new_chat"
+    const val CREATE_GROUP = "create_group"
     const val CHAT = "chat/{chatId}/{otherUid}"
     const val PROFILE = "profile"
     const val SETTINGS = "settings"
     const val FULLSCREEN_IMAGE = "fullscreen_image"
     const val USER_PROFILE = "user_profile/{uid}"
+    const val GROUP_PROFILE = "group_profile/{chatId}"
+    const val ADD_MEMBERS = "add_members/{chatId}/{existingUids}"
 
     fun chat(chatId: String, otherUid: String) = "chat/$chatId/$otherUid"
     fun userProfile(uid: String) = "user_profile/$uid"
+    fun groupProfile(chatId: String) = "group_profile/$chatId"
+    fun addMembers(chatId: String, existingUids: List<String>) =
+        "add_members/$chatId/${existingUids.joinToString(",")}"
 }
 
 @Composable
@@ -57,7 +66,7 @@ fun LChatNavigation() {
                     val user = Firebase.auth.currentUser
                     val dest = when {
                         user == null -> Routes.LOGIN
-                       // !user.isEmailVerified -> Routes.EMAIL_VERIFICATION
+                        // !user.isEmailVerified -> Routes.EMAIL_VERIFICATION
                         else -> Routes.CHATS
                     }
                     navController.navigate(dest) {
@@ -149,6 +158,20 @@ fun LChatNavigation() {
                 onUserClick = { uid ->
                     navController.navigate(Routes.userProfile(uid))
                 },
+                onCreateGroup = {
+                    navController.navigate(Routes.CREATE_GROUP)
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.CREATE_GROUP) {
+            CreateGroupScreen(
+                onGroupCreated = { chatId ->
+                    navController.navigate(Routes.chat(chatId, "group")) {
+                        popUpTo(Routes.CHATS)
+                    }
+                },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -182,7 +205,41 @@ fun LChatNavigation() {
                 },
                 onProfileClick = { uid ->
                     navController.navigate(Routes.userProfile(uid))
+                },
+                onGroupClick = { gChatId ->
+                    navController.navigate(Routes.groupProfile(gChatId))
                 }
+            )
+        }
+
+        composable(Routes.GROUP_PROFILE) { backStackEntry ->
+            val gChatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
+            GroupProfileScreen(
+                chatId = gChatId,
+                onBack = { navController.popBackStack() },
+                onGroupLeft = {
+                    navController.navigate(Routes.CHATS) {
+                        popUpTo(Routes.CHATS) { inclusive = false }
+                    }
+                },
+                onMemberClick = { uid ->
+                    navController.navigate(Routes.userProfile(uid))
+                },
+                onAddMembers = { existingUids ->
+                    navController.navigate(Routes.addMembers(gChatId, existingUids))
+                }
+            )
+        }
+
+        composable(Routes.ADD_MEMBERS) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
+            val existingUidsStr = backStackEntry.arguments?.getString("existingUids") ?: ""
+            val existingUids = existingUidsStr.split(",").filter { it.isNotEmpty() }
+            AddMembersScreen(
+                chatId = chatId,
+                existingMemberUids = existingUids,
+                onBack = { navController.popBackStack() },
+                onDone = { navController.popBackStack() }
             )
         }
 
