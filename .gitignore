@@ -46,3 +46,8 @@ local.properties
 
 # ─── Sistema ───
 .DS_Store
+lint-baseline.xml
+*.apk
+*.aab
+android/LChat/app/prod/
+android/LChat/app/dev/

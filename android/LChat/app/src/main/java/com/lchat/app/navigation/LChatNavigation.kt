@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.lchat.app.BuildConfig
 import com.lchat.app.auth.EmailVerificationScreen
 import com.lchat.app.auth.LoginScreen
 import com.lchat.app.auth.RegisterScreen
@@ -55,7 +56,6 @@ object Routes {
 fun LChatNavigation() {
     val navController = rememberNavController()
 
-
     NavHost(
         navController = navController,
         startDestination = Routes.SPLASH
@@ -66,7 +66,7 @@ fun LChatNavigation() {
                     val user = Firebase.auth.currentUser
                     val dest = when {
                         user == null -> Routes.LOGIN
-                        // !user.isEmailVerified -> Routes.EMAIL_VERIFICATION
+                        BuildConfig.REQUIRE_EMAIL_VERIFICATION && !user.isEmailVerified -> Routes.EMAIL_VERIFICATION
                         else -> Routes.CHATS
                     }
                     navController.navigate(dest) {

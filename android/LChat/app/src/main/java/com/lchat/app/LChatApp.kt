@@ -25,7 +25,7 @@ class LChatApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.USE_EMULATOR) {
             connectToEmulators()
         }
         createNotificationChannel()

@@ -1,3 +1,4 @@
+import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -9,6 +10,10 @@ android {
     namespace = "com.lchat.app"
     compileSdk = 36
 
+    lint {
+        baseline = file("lint-baseline.xml")
+    }
+
     defaultConfig {
         applicationId = "com.lchat.app"
         minSdk = 26
@@ -17,19 +22,52 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 
-        buildConfigField("String", "EMULATOR_HOST", "\"192.168.1.134\"")
+    signingConfigs {
+        create("release") {
+            val props = Properties()
+            val localPropertiesFile = rootProject.file("local.properties")
+            if (localPropertiesFile.exists()) {
+                props.load(localPropertiesFile.inputStream())
+            }
+            storeFile = file(props.getProperty("KEYSTORE_PATH", ""))
+            storePassword = props.getProperty("KEYSTORE_PASSWORD", "")
+            keyAlias = props.getProperty("KEY_ALIAS", "")
+            keyPassword = props.getProperty("KEY_PASSWORD", "")
+        }
+    }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            buildConfigField("String", "EMULATOR_HOST", "\"192.168.1.134\"")
+            buildConfigField("Boolean", "USE_EMULATOR", "true")
+            buildConfigField("Boolean", "REQUIRE_EMAIL_VERIFICATION", "false")
+        }
+        create("prod") {
+            dimension = "environment"
+            buildConfigField("String", "EMULATOR_HOST", "\"\"")
+            buildConfigField("Boolean", "USE_EMULATOR", "false")
+            buildConfigField("Boolean", "REQUIRE_EMAIL_VERIFICATION", "true")
+        }
     }
 
     buildTypes {
+        debug {
+        }
         release {
-            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

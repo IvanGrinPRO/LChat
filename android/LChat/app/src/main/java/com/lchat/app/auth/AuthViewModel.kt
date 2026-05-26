@@ -3,6 +3,7 @@ package com.lchat.app.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.messaging.FirebaseMessaging
+import com.lchat.app.BuildConfig
 import com.lchat.app.data.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,15 +29,18 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Loading
             repository.signIn(email.trim(), password)
                 .onSuccess {
-                    //if (repository.reloadAndCheckVerified()) {
-                    //    guardarTokenFcm()
-                    //    _uiState.value = AuthUiState.Success
-                    //} else {
-                    //    repository.sendEmailVerification()
-                    //    _uiState.value = AuthUiState.VerificationPending
-                   // }
-                    guardarTokenFcm()
-                    _uiState.value = AuthUiState.Success
+                    if (BuildConfig.REQUIRE_EMAIL_VERIFICATION) {
+                        if (repository.reloadAndCheckVerified()) {
+                            guardarTokenFcm()
+                            _uiState.value = AuthUiState.Success
+                        } else {
+                            repository.sendEmailVerification()
+                            _uiState.value = AuthUiState.VerificationPending
+                        }
+                    } else {
+                        guardarTokenFcm()
+                        _uiState.value = AuthUiState.Success
+                    }
                 }
                 .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Error desconocido") }
         }
@@ -56,10 +60,13 @@ class AuthViewModel(
             repository.signUp(email.trim(), password)
                 .onSuccess { user ->
                     try { repository.updateUsername(user.uid, username.trim()) } catch (_: Exception) {}
-                    //repository.sendEmailVerification()
-                    //_uiState.value = AuthUiState.VerificationPending
-                    guardarTokenFcm()
-                    _uiState.value = AuthUiState.Success
+                    if (BuildConfig.REQUIRE_EMAIL_VERIFICATION) {
+                        repository.sendEmailVerification()
+                        _uiState.value = AuthUiState.VerificationPending
+                    } else {
+                        guardarTokenFcm()
+                        _uiState.value = AuthUiState.Success
+                    }
                 }
                 .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Error desconocido") }
         }
