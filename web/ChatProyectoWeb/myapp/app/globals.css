@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+:root {
+  --background: #1a1a1e;
+  --panel-bg: #1e1e22; 
+  --primary-accent: #ff4d5f;
+  --foreground: #ffffff;
+}
+
+@theme inline {
+  --color-primary-accent: var(--primary-accent);
+  --color-panel: var(--panel-bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.btn-neumorphic {
+  border-radius: 1.5rem; 
+  transition: all 0.2s ease-in-out;
+  box-shadow: 6px 6px 12px #18181b, -6px -6px 12px #2a2a31;
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+
+.btn-neumorphic:hover {
+  transform: scale(1.01);
+  box-shadow: 7px 7px 14px #151518, -7px -7px 14px #2e2e36;
+}
+
+.btn-neumorphic:active {
+  transform: scale(0.98);
+  box-shadow: inset 4px 4px 8px #18181b, inset -4px -4px 8px #2a2a31;
+}
+
+.shadow-soft-out {
+  box-shadow: 8px 8px 16px #121215, -8px -8px 16px #28282f;
+}
+
+.shadow-soft-in {
+  box-shadow: inset 6px 6px 12px #121215, inset -6px -6px 12px #28282f;
+}
+
+.shadow-btn-out {
+  box-shadow: 4px 4px 8px #121215, -4px -4px 8px #28282f;
+}
