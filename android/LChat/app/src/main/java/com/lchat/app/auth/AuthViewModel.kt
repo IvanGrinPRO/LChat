@@ -19,6 +19,9 @@ class AuthViewModel(
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+    private val _resetState = MutableStateFlow<ResetPasswordState>(ResetPasswordState.Idle)
+    val resetState: StateFlow<ResetPasswordState> = _resetState.asStateFlow()
+
     val isLoggedIn: Boolean
         get() = repository.currentUser != null
 
@@ -91,6 +94,23 @@ class AuthViewModel(
         }
     }
 
+    fun sendPasswordReset(email: String) {
+        if (email.isBlank() || !email.contains("@")) {
+            _resetState.value = ResetPasswordState.Error("Email no válido")
+            return
+        }
+        viewModelScope.launch {
+            _resetState.value = ResetPasswordState.Loading
+            repository.sendPasswordResetEmail(email)
+                .onSuccess { _resetState.value = ResetPasswordState.Sent }
+                .onFailure { _resetState.value = ResetPasswordState.Error(it.message ?: "Error") }
+        }
+    }
+
+    fun resetPasswordState() {
+        _resetState.value = ResetPasswordState.Idle
+    }
+
     val currentUserEmail: String
         get() = repository.currentUserEmail
 
@@ -134,4 +154,11 @@ class AuthViewModel(
         }
         return validateLogin(email, password)
     }
+}
+
+sealed interface ResetPasswordState {
+    data object Idle : ResetPasswordState
+    data object Loading : ResetPasswordState
+    data object Sent : ResetPasswordState
+    data class Error(val message: String) : ResetPasswordState
 }

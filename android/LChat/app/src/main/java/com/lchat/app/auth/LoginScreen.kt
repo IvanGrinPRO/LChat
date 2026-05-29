@@ -1,5 +1,6 @@
 package com.lchat.app.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,10 +9,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -21,18 +26,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.lchat.app.R
 import com.lchat.app.ui.components.NeumorphicButton
 import com.lchat.app.ui.components.NeumorphicTextField
 import com.lchat.app.ui.theme.NeuAccent
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import com.lchat.app.R
+import com.lchat.app.ui.theme.NeuSurface
+import com.lchat.app.ui.theme.TextSecondary
 
 @Composable
 fun LoginScreen(
@@ -42,8 +47,12 @@ fun LoginScreen(
     viewModel: AuthViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val resetState by viewModel.resetState.collectAsState()
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showForgotDialog by remember { mutableStateOf(false) }
+    var resetEmail by remember { mutableStateOf("") }
 
     LaunchedEffect(uiState) {
         if (uiState is AuthUiState.Success) {
@@ -92,7 +101,7 @@ fun LoginScreen(
             NeumorphicTextField(
                 value = password,
                 onValueChange = { password = it },
-                placeholder = "Password",
+                placeholder = "Contrasena",
                 isPassword = true
             )
 
@@ -118,7 +127,7 @@ fun LoginScreen(
                         modifier = Modifier.height(20.dp)
                     )
                 } else {
-                    Text("Sign In")
+                    Text("Iniciar sesion")
                 }
             }
 
@@ -126,8 +135,88 @@ fun LoginScreen(
                 onClick = onNavigateToRegister,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Create Account")
+                Text("Crear cuenta")
+            }
+
+            TextButton(onClick = {
+                resetEmail = email
+                viewModel.resetPasswordState()
+                showForgotDialog = true
+            }) {
+                Text(
+                    text = "Olvide mi contrasena",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
+    }
+
+    if (showForgotDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showForgotDialog = false
+                viewModel.resetPasswordState()
+            },
+            title = { Text("Restablecer contrasena") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Ingresa tu email y te enviaremos un enlace para restablecer tu contrasena.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                    NeumorphicTextField(
+                        value = resetEmail,
+                        onValueChange = { resetEmail = it },
+                        placeholder = "Email",
+                        keyboardType = KeyboardType.Email
+                    )
+                    when (resetState) {
+                        is ResetPasswordState.Error -> Text(
+                            text = (resetState as ResetPasswordState.Error).message,
+                            color = NeuAccent,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        is ResetPasswordState.Sent -> Text(
+                            text = "Email enviado! Revisa tu bandeja de entrada.",
+                            color = NeuAccent,
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        else -> {}
+                    }
+                }
+            },
+            confirmButton = {
+                if (resetState !is ResetPasswordState.Sent) {
+                    TextButton(
+                        onClick = { viewModel.sendPasswordReset(resetEmail) },
+                        enabled = resetState !is ResetPasswordState.Loading
+                    ) {
+                        if (resetState is ResetPasswordState.Loading) {
+                            CircularProgressIndicator(
+                                color = NeuAccent,
+                                modifier = Modifier.height(18.dp)
+                            )
+                        } else {
+                            Text("Enviar", color = NeuAccent)
+                        }
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showForgotDialog = false
+                    viewModel.resetPasswordState()
+                }) {
+                    Text(if (resetState is ResetPasswordState.Sent) "Cerrar" else "Cancelar")
+                }
+            },
+            containerColor = NeuSurface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = TextSecondary
+        )
     }
 }

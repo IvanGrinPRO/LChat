@@ -1,5 +1,6 @@
 package com.lchat.app.auth
 
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.ktx.auth
@@ -66,6 +67,29 @@ class AuthRepository(
             auth.currentUser?.isEmailVerified == true
         } catch (e: Exception) {
             false
+        }
+    }
+
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+        return try {
+            auth.sendPasswordResetEmail(email.trim()).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> {
+        return try {
+            val user = auth.currentUser ?: return Result.failure(IllegalStateException("No hay sesión"))
+            val email = user.email ?: return Result.failure(IllegalStateException("Sin email"))
+            // re-autenticación obligatoria antes de cambiar contraseña
+            val credential = EmailAuthProvider.getCredential(email, currentPassword)
+            user.reauthenticate(credential).await()
+            user.updatePassword(newPassword).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

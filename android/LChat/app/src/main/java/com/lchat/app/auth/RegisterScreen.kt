@@ -92,7 +92,7 @@ fun RegisterScreen(
             NeumorphicTextField(
                 value = password,
                 onValueChange = { password = it },
-                placeholder = "Password",
+                placeholder = "Contrasena",
                 isPassword = true
             )
 
@@ -118,7 +118,7 @@ fun RegisterScreen(
                         modifier = Modifier.height(20.dp)
                     )
                 } else {
-                    Text("Register")
+                    Text("Registrarse")
                 }
             }
 
