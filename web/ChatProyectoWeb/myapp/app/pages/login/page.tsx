@@ -12,7 +12,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center text-white font-sans p-4"
-    style={{ backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/d860a717e06773b024fe904e0ee095b5.jpg'" }}
+    style={{ backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('public\d860a717e06773b024fe904e0ee095b5.jpg')" }}
     >
         
       <div className="absolute top-8 left-8">

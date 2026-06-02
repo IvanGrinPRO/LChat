@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 
 export default function ProfileSettings({ params }: { params: { id: string } }) {
+  
   const id = React.use(params).id;
   const [activeTab, setActiveTab] = useState('General');
   

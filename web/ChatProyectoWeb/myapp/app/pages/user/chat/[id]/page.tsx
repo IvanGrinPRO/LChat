@@ -1,4 +1,5 @@
 import React from 'react';
+import { SendHorizonal } from 'lucide-react';
 
 export default function ChatsPage() {
   const conversations = [
@@ -77,7 +78,6 @@ export default function ChatsPage() {
             </div>
           </div>
           <div className="flex gap-4">
-            <button className="w-12 h-12 rounded-full shadow-soft-out flex items-center justify-center hover:shadow-soft-in transition-all">📞</button>
             <button className="w-12 h-12 rounded-full shadow-soft-out flex items-center justify-center hover:shadow-soft-in transition-all text-primary-accent">● ● ●</button>
           </div>
         </header>
@@ -120,7 +120,7 @@ export default function ChatsPage() {
             />
             <button className="w-12 h-12 rounded-full shadow-soft-out flex items-center justify-center hover:shadow-soft-in transition-all">📎</button>
             <button className="w-14 h-14 rounded-[1.5rem] bg-primary-accent shadow-lg shadow-primary-accent/20 flex items-center justify-center hover:brightness-110 active:scale-90 transition-all">
-              <span className="text-white text-xl">📷</span>
+              <span className="text-white text-l"><SendHorizonal/></span>
             </button>
           </div>
         </footer>
