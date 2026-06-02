@@ -211,6 +211,17 @@ class ChatRepository(
         }
     }
 
+    suspend fun hideChatForMe(chatId: String): Result<Unit> {
+        return try {
+            firestore.collection("chats").document(chatId)
+                .update("hiddenFor", com.google.firebase.firestore.FieldValue.arrayUnion(currentUid))
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun sendImageMessage(chatId: String, imageUri: android.net.Uri): Result<Unit> {
         return try {
             val messageId = firestore.collection("chats")

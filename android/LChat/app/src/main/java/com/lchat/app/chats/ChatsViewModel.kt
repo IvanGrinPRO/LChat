@@ -50,10 +50,12 @@ class ChatsViewModel(
     private fun loadChats() {
         viewModelScope.launch {
             chatRepository.getMyChats().collect { chatList ->
-                currentChats = chatList
-                chatList.forEach { chat ->
+                // filtrar chats ocultos para el usuario actual
+                currentChats = chatList.filter { chat ->
+                    userRepository.currentUid !in chat.hiddenFor
+                }
+                currentChats.forEach { chat ->
                     if (chat.type == "group") {
-                        // grupos: no escuchar usuario individual
                         if (chat.id !in unreadJobs) {
                             unreadJobs[chat.id] = listenToUnread(chat.id)
                         }
@@ -112,6 +114,12 @@ class ChatsViewModel(
                     unreadCount = unreadMap[chat.id] ?: 0
                 )
             }
+        }
+    }
+
+    fun hideChat(chatId: String) {
+        viewModelScope.launch {
+            chatRepository.hideChatForMe(chatId)
         }
     }
 }

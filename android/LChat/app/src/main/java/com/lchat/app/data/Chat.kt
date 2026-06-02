@@ -13,5 +13,6 @@ data class Chat(
     val lastMessageText: String? = null,
     val lastMessageType: String? = null,
     val lastMessageAt: Timestamp? = null,
-    val lastMessageSenderId: String? = null
+    val lastMessageSenderId: String? = null,
+    val hiddenFor: List<String> = emptyList()
 )

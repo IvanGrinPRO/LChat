@@ -12,13 +12,14 @@ export const onMessageCreated = onDocumentCreated(
 
     const chatId = event.params.chatId;
 
-    // actualizar lastMessage en chat
+    // actualizar lastMessage y quitar al remitente de hiddenFor
     await db.collection("chats").doc(chatId).update({
       lastMessageText: message.text ?? null,
       lastMessageType: message.type,
       lastMessageAt: message.createdAt,
       lastMessageSenderId: message.senderId,
       updatedAt: FieldValue.serverTimestamp(),
+      hiddenFor: FieldValue.arrayRemove(message.senderId),
     });
 
     const chatSnap = await db.collection("chats").doc(chatId).get();
