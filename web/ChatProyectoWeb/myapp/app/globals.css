@@ -1,9 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #1a1a1e;
-  --panel-bg: #1e1e22; 
+  --bg-base: #1a1a1e;
+  --bg-surface: #1e1e22;
+  --bg-sunken: #1c1c20;
+  --text: #ffffff;
+  --shadow-dark: #121215;
+  --shadow-light: #28282f;
   --primary-accent: #ff4d5f;
+  --background: #1a1a1e;
+  --panel-bg: #1e1e22;
   --foreground: #ffffff;
 }
 
@@ -12,45 +18,81 @@
   --color-panel: var(--panel-bg);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Light Theme ─────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-base: #e8e8ec;
+  --bg-surface: #f0f0f4;
+  --bg-sunken: #e0e0e4;
+  --text: #1a1a1e;
+  --shadow-dark: #c5c5c9;
+  --shadow-light: #ffffff;
+  --background: #e8e8ec;
+  --foreground: #1a1a1e;
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
+/* Background overrides */
+[data-theme="light"] .bg-\[\#1a1a1e\]   { background-color: #e8e8ec !important; }
+[data-theme="light"] .bg-\[\#1e1e22\]   { background-color: #f0f0f4 !important; }
+[data-theme="light"] .bg-\[\#1c1c20\]   { background-color: #e0e0e4 !important; }
+[data-theme="light"] .bg-\[\#252529\]   { background-color: #d8d8dc !important; }
+
+[data-theme="light"] .bg-\[\#1a1a1e\]\/50  { background-color: rgba(232,232,236,0.5) !important; }
+[data-theme="light"] .bg-\[\#1c1c20\]\/30  { background-color: rgba(224,224,228,0.3) !important; }
+[data-theme="light"] .bg-\[\#1c1c20\]\/50  { background-color: rgba(224,224,228,0.5) !important; }
+[data-theme="light"] .bg-\[\#1e1e22\]\/50  { background-color: rgba(240,240,244,0.5) !important; }
+
+/* Text overrides */
+[data-theme="light"] .text-white                { color: #1a1a1e !important; }
+[data-theme="light"] .text-gray-400             { color: #6b7280 !important; }
+[data-theme="light"] .text-gray-500             { color: #6b7280 !important; }
+[data-theme="light"] .text-gray-600             { color: #9ca3af !important; }
+[data-theme="light"] .placeholder\:text-gray-600::placeholder { color: #9ca3af !important; }
+
+/* Keep accent button text white on colored bg */
+[data-theme="light"] .bg-primary-accent .text-white,
+[data-theme="light"] .bg-primary-accent         { color: #ffffff !important; }
+
+/* Border overrides */
+[data-theme="light"] .border-white\/\[0\.02\]   { border-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .border-white\/\[0\.03\]   { border-color: rgba(0,0,0,0.06) !important; }
+[data-theme="light"] .border-white\/5           { border-color: rgba(0,0,0,0.05) !important; }
+[data-theme="light"] .border-white\/10          { border-color: rgba(0,0,0,0.10) !important; }
+[data-theme="light"] .border-t.border-white\/5  { border-color: rgba(0,0,0,0.08) !important; }
+
+/* Shadow overrides */
+[data-theme="light"] .shadow-soft-out {
+  box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light) !important;
 }
+[data-theme="light"] .shadow-soft-in {
+  box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light) !important;
+}
+[data-theme="light"] .shadow-btn-out {
+  box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light) !important;
+}
+
+/* Message bubble — own messages stay white text on accent */
+[data-theme="light"] .bg-primary-accent p,
+[data-theme="light"] .bg-primary-accent span,
+[data-theme="light"] .bg-primary-accent div { color: #ffffff; }
+
+/* Input — override bg-transparent text */
+[data-theme="light"] input, [data-theme="light"] textarea { color: #1a1a1e; }
+
+/* ── Body ─────────────────────────────────────────────── */
+body { background-color: var(--background); color: var(--foreground); }
+
+/* ── Neumorphic base (dark) ──────────────────────────── */
+.shadow-soft-out { box-shadow: 8px 8px 16px #121215, -8px -8px 16px #28282f; }
+.shadow-soft-in  { box-shadow: inset 6px 6px 12px #121215, inset -6px -6px 12px #28282f; }
+.shadow-btn-out  { box-shadow: 4px 4px 8px #121215, -4px -4px 8px #28282f; }
 
 .btn-neumorphic {
-  border-radius: 1.5rem; 
+  border-radius: 1.5rem;
   transition: all 0.2s ease-in-out;
   box-shadow: 6px 6px 12px #18181b, -6px -6px 12px #2a2a31;
   border: none;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255,255,255,0.9);
   cursor: pointer;
 }
-
-.btn-neumorphic:hover {
-  transform: scale(1.01);
-  box-shadow: 7px 7px 14px #151518, -7px -7px 14px #2e2e36;
-}
-
-.btn-neumorphic:active {
-  transform: scale(0.98);
-  box-shadow: inset 4px 4px 8px #18181b, inset -4px -4px 8px #2a2a31;
-}
-
-.shadow-soft-out {
-  box-shadow: 8px 8px 16px #121215, -8px -8px 16px #28282f;
-}
-
-.shadow-soft-in {
-  box-shadow: inset 6px 6px 12px #121215, inset -6px -6px 12px #28282f;
-}
-
-.shadow-btn-out {
-  box-shadow: 4px 4px 8px #121215, -4px -4px 8px #28282f;
-}
+.btn-neumorphic:hover  { transform: scale(1.01); box-shadow: 7px 7px 14px #151518, -7px -7px 14px #2e2e36; }
+.btn-neumorphic:active { transform: scale(0.98); box-shadow: inset 4px 4px 8px #18181b, inset -4px -4px 8px #2a2a31; }

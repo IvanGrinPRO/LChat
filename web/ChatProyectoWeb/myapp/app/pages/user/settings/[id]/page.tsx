@@ -2,16 +2,19 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, deleteUser } from 'firebase/auth';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/app/lib/firebase';
 import AvatarImage from '@/app/components/AvatarImage';
 import { useAuth } from '@/app/lib/AuthContext';
+import { useTheme } from '@/app/lib/ThemeContext';
+import { Sun, Moon, Trash2 } from 'lucide-react';
 
 export default function SettingsPage() {
   const router = useRouter();
   const { firebaseUser, user, loading } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const [activeTab, setActiveTab] = useState('General');
   const [username, setUsername] = useState('');
@@ -26,6 +29,11 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -87,6 +95,36 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleDeleteAccount() {
+    if (!firebaseUser?.email || !deletePassword) return;
+    setDeleteError('');
+    setDeleting(true);
+    try {
+      const credential = EmailAuthProvider.credential(firebaseUser.email, deletePassword);
+      await reauthenticateWithCredential(firebaseUser, credential);
+      await updateDoc(doc(db, 'users', firebaseUser.uid), {
+        username: 'Deleted Account',
+        usernameLower: 'deleted account',
+        email: '',
+        avatarUrl: '',
+        isOnline: false,
+        isDeleted: true,
+        updatedAt: serverTimestamp(),
+      });
+      await deleteUser(firebaseUser);
+      router.push('/pages/login');
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      setDeleteError(
+        code === 'auth/wrong-password' || code === 'auth/invalid-credential'
+          ? 'Incorrect password'
+          : 'Failed to delete account'
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function handleSaveSecurity() {
     if (!firebaseUser?.email) return;
     if (!currentPassword || !newPassword) { flash('Fill in all fields', true); return; }
@@ -137,14 +175,14 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#1a1a1e] flex items-start justify-center p-10 text-white font-sans">
-      <div className="w-full max-w-6xl grid grid-cols-[300px_1fr] gap-12">
+    <div className="min-h-screen bg-[#1a1a1e] flex items-start justify-center p-4 md:p-10 text-white font-sans">
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 lg:gap-12">
 
         {/* ── Sidebar ── */}
-        <aside className="space-y-8 sticky top-10">
-          <div className="p-8 rounded-[2.5rem] shadow-soft-out flex flex-col items-center gap-1">
+        <aside className="space-y-4 lg:space-y-8 lg:sticky lg:top-10">
+          <div className="p-5 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-soft-out flex flex-row lg:flex-col items-center gap-4 lg:gap-1">
             <div
-              className="relative w-28 h-28 rounded-full shadow-soft-out border-[6px] border-[#1e1e22] overflow-hidden mb-3 cursor-pointer group"
+              className="relative w-16 h-16 lg:w-28 lg:h-28 rounded-full shadow-soft-out border-[4px] lg:border-[6px] border-[#1e1e22] overflow-hidden lg:mb-3 cursor-pointer group shrink-0"
               onClick={() => fileInputRef.current?.click()}
             >
               {avatarUploading ? (
@@ -171,12 +209,12 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <nav className="p-4 rounded-[2rem] shadow-soft-in space-y-1">
+          <nav className="p-2 md:p-4 rounded-[1.5rem] md:rounded-[2rem] shadow-soft-in flex lg:flex-col gap-1">
             {['General', 'Security'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => { setActiveTab(tab); setError(''); setSuccess(''); }}
-                className={`w-full text-left px-6 py-4 rounded-xl text-sm font-bold transition-all ${
+                className={`flex-1 lg:flex-none text-center lg:text-left px-4 lg:px-6 py-3 lg:py-4 rounded-xl text-sm font-bold transition-all ${
                   activeTab === tab
                     ? 'bg-primary-accent text-white shadow-lg shadow-primary-accent/20'
                     : 'text-gray-500 hover:text-white'
@@ -197,13 +235,13 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <div className="p-2 rounded-[3.5rem] shadow-soft-out bg-[#1e1e22]">
-            <div className="p-10 space-y-8">
+          <div className="p-1 md:p-2 rounded-[2rem] md:rounded-[3.5rem] shadow-soft-out bg-[#1e1e22]">
+            <div className="p-5 md:p-10 space-y-6 md:space-y-8">
 
               {/* ── General Tab ── */}
               {activeTab === 'General' && (
                 <>
-                  <section className="grid grid-cols-2 gap-8">
+                  <section className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8">
                     <div className="space-y-3">
                       <label className="text-[10px] text-gray-500 font-black tracking-[0.2em] ml-4 uppercase">Username</label>
                       <div className="p-1 rounded-2xl shadow-soft-in">
@@ -290,13 +328,32 @@ export default function SettingsPage() {
                 </section>
               )}
 
+              {/* ── Theme Toggle ── */}
+              <section className="p-6 rounded-3xl shadow-soft-in bg-[#1c1c20]/50 flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold">Appearance</h4>
+                  <p className="text-[10px] text-gray-500 mt-1">{theme === 'dark' ? 'Dark mode' : 'Light mode'}</p>
+                </div>
+                <button
+                  onClick={toggleTheme}
+                  className="w-16 h-8 rounded-full shadow-soft-out p-1 flex items-center bg-[#1a1a1e] transition-all"
+                >
+                  <div className={`w-6 h-6 rounded-full transition-all duration-300 flex items-center justify-center ${
+                    theme === 'light'
+                      ? 'bg-yellow-400 shadow-md shadow-yellow-400/40 ml-auto'
+                      : 'bg-gray-700 ml-0'
+                  }`}>
+                    {theme === 'light'
+                      ? <Sun size={12} className="text-white" />
+                      : <Moon size={12} className="text-gray-400" />
+                    }
+                  </div>
+                </button>
+              </section>
+
               {/* ── Feedback ── */}
-              {error && (
-                <p className="text-xs text-red-400 font-bold ml-2 animate-pulse">{error}</p>
-              )}
-              {success && (
-                <p className="text-xs text-green-400 font-bold ml-2">{success}</p>
-              )}
+              {error && <p className="text-xs text-red-400 font-bold ml-2 animate-pulse">{error}</p>}
+              {success && <p className="text-xs text-green-400 font-bold ml-2">{success}</p>}
 
               {/* ── Footer ── */}
               <footer className="pt-2 flex gap-4">
@@ -309,10 +366,63 @@ export default function SettingsPage() {
                 </button>
               </footer>
 
+              {/* ── Danger Zone ── */}
+              <div className="pt-4 border-t border-red-500/20">
+                <button
+                  onClick={() => { setShowDeleteAccount(true); setDeleteError(''); setDeletePassword(''); }}
+                  className="w-full py-4 rounded-2xl border border-red-500/30 text-red-400 text-xs font-bold uppercase tracking-widest hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={14} /> Delete Account
+                </button>
+              </div>
+
             </div>
           </div>
         </div>
       </div>
+
+      {showDeleteAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+          onClick={() => setShowDeleteAccount(false)}>
+          <div className="bg-[#1e1e22] rounded-[2rem] shadow-soft-out p-8 max-w-sm w-full space-y-6 border border-white/5"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 rounded-full bg-red-400/10 flex items-center justify-center mx-auto">
+                <Trash2 size={22} className="text-red-400" />
+              </div>
+              <h3 className="font-black text-lg tracking-tight">Delete account?</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                This action is irreversible. Your profile will be anonymized and your account will be permanently deleted.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <label className="text-[10px] text-gray-500 font-black tracking-[0.2em] uppercase">Confirm your password</label>
+              <div className="p-1 rounded-2xl shadow-soft-in">
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleDeleteAccount()}
+                  autoFocus
+                  className="w-full bg-transparent p-3 text-sm outline-none"
+                />
+              </div>
+              {deleteError && <p className="text-xs text-red-400 font-bold ml-2">{deleteError}</p>}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteAccount(false)}
+                className="flex-1 py-3 rounded-2xl shadow-soft-out text-gray-500 text-sm font-bold hover:text-white transition-all">
+                Cancel
+              </button>
+              <button onClick={handleDeleteAccount} disabled={deleting || !deletePassword}
+                className="flex-1 py-3 rounded-2xl bg-red-500 text-white text-sm font-bold hover:brightness-110 disabled:opacity-50 transition-all">
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
