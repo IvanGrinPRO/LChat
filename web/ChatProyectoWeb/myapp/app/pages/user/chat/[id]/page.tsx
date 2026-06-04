@@ -11,8 +11,9 @@ import { db, storage } from '@/app/lib/firebase';
 import { chatConverter, messageConverter, type Chat, type Message } from '@/app/lib/models/ChatModel';
 import { userConverter, type User } from '@/app/lib/models/UserModel';
 import { useAuth } from '@/app/lib/AuthContext';
-import { SendHorizonal, Paperclip, X, FileIcon, Users, MessageCircle } from 'lucide-react';
+import { SendHorizonal, Paperclip, X, FileIcon, Users, MessageCircle, Trash2, MoreVertical } from 'lucide-react';
 import AvatarImage from '@/app/components/AvatarImage';
+import { deleteDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
@@ -47,6 +48,12 @@ export default function ChatPage() {
   const [groupSearchError, setGroupSearchError] = useState('');
   const [groupMembers, setGroupMembers] = useState<User[]>([]);
   const [groupLoading, setGroupLoading] = useState(false);
+
+  // Message context menu
+  const [msgMenu, setMsgMenu] = useState<string | null>(null);
+
+  // Delete chat confirmation
+  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
 
   // File upload
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -247,6 +254,29 @@ export default function ChatPage() {
     }
   }
 
+  // ── Delete message for me ──
+  async function handleDeleteMessageForMe(msgId: string) {
+    if (!firebaseUser) return;
+    await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
+      deletedFor: arrayUnion(firebaseUser.uid),
+    });
+    setMsgMenu(null);
+  }
+
+  // ── Delete message for everyone (own messages only) ──
+  async function handleDeleteMessageForAll(msgId: string) {
+    await deleteDoc(doc(db, 'chats', chatId, 'messages', msgId));
+    setMsgMenu(null);
+  }
+
+  // ── Delete (hide) chat ──
+  async function handleDeleteChat(cId: string) {
+    if (!firebaseUser) return;
+    await updateDoc(doc(db, 'chats', cId), { hiddenFor: arrayUnion(firebaseUser.uid) });
+    setDeletingChatId(null);
+    if (cId === chatId) router.push('/pages/user/chat/list');
+  }
+
   // ── Display helpers ──
   function getChatPartner(chat: Chat): User | undefined {
     const otherId = chat.members.find((m) => m !== firebaseUser?.uid);
@@ -293,10 +323,10 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen bg-[#1a1a1e] p-6 flex gap-8 text-white overflow-hidden">
+    <div className="h-[100dvh] bg-[#1a1a1e] p-2 md:p-6 flex gap-2 md:gap-8 text-white overflow-hidden">
 
       {/* ── Chat List ── */}
-      <aside className="w-[380px] flex flex-col gap-4 min-w-0">
+      <aside className={`flex-col gap-4 min-w-0 w-full md:w-[380px] md:flex ${isRealChat ? 'hidden md:flex' : 'flex'}`}>
         <header className="flex justify-between items-center px-4">
           <h1 className="text-3xl font-black tracking-tighter italic">CHATS</h1>
           <button
@@ -427,45 +457,53 @@ export default function ChatPage() {
         </div>
 
         <div className="flex-grow overflow-y-auto px-2 space-y-4 custom-scrollbar">
-          {chats.length === 0 && (
+          {chats.filter((c) => !c.hiddenFor.includes(firebaseUser?.uid ?? '')).length === 0 && (
             <p className="text-center py-12 text-gray-600 text-xs font-black uppercase tracking-[0.2em]">No chats yet. Hit + to start one.</p>
           )}
-          {chats.map((chat) => (
-            <div key={chat.id} onClick={() => router.push(`/pages/user/chat/${chat.id}`)}
-              className={`p-4 rounded-[2rem] cursor-pointer transition-all flex items-center gap-4 ${
-                chat.id === chatId ? 'shadow-soft-in bg-[#1c1c20]/50' : 'shadow-soft-out hover:bg-[#1e1e22]'
-              }`}>
-              <div className="relative shrink-0">
-                <div className="w-14 h-14 rounded-full shadow-soft-out border-2 border-[#1e1e22] overflow-hidden">
-                  <AvatarImage src={getChatAvatar(chat)} alt="avatar" className="w-full h-full object-cover" />
-                </div>
-                {chat.type === 'private' && getChatPartner(chat)?.isOnline && (
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1a1a1e] shadow-[0_0_8px_#22c55e]" />
-                )}
-                {chat.type === 'group' && (
-                  <div className="absolute bottom-0 right-0 w-5 h-5 bg-[#1e1e22] rounded-full border border-white/10 flex items-center justify-center">
-                    <Users size={10} className="text-gray-400" />
+          {chats.filter((c) => !c.hiddenFor.includes(firebaseUser?.uid ?? '')).map((chat) => (
+            <div key={chat.id} className="group relative">
+              <div onClick={() => router.push(`/pages/user/chat/${chat.id}`)}
+                className={`p-4 rounded-[2rem] cursor-pointer transition-all flex items-center gap-4 ${
+                  chat.id === chatId ? 'shadow-soft-in bg-[#1c1c20]/50' : 'shadow-soft-out hover:bg-[#1e1e22]'
+                }`}>
+                <div className="relative shrink-0">
+                  <div className="w-14 h-14 rounded-full shadow-soft-out border-2 border-[#1e1e22] overflow-hidden">
+                    <AvatarImage src={getChatAvatar(chat)} alt="avatar" className="w-full h-full object-cover" />
                   </div>
-                )}
-              </div>
-              <div className="flex-grow min-w-0">
-                <div className="flex justify-between items-center mb-1">
-                  <h3 className="font-bold text-sm truncate">{getChatName(chat)}</h3>
-                  <span className="text-[10px] text-gray-500 font-bold shrink-0 ml-2">{formatTime(chat.lastMessageAt)}</span>
+                  {chat.type === 'private' && getChatPartner(chat)?.isOnline && (
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1a1a1e] shadow-[0_0_8px_#22c55e]" />
+                  )}
+                  {chat.type === 'group' && (
+                    <div className="absolute bottom-0 right-0 w-5 h-5 bg-[#1e1e22] rounded-full border border-white/10 flex items-center justify-center">
+                      <Users size={10} className="text-gray-400" />
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs truncate text-gray-500">{chat.lastMessageText ?? 'No messages yet'}</p>
+                <div className="flex-grow min-w-0 pr-8">
+                  <div className="flex justify-between items-center mb-1">
+                    <h3 className="font-bold text-sm truncate">{getChatName(chat)}</h3>
+                    <span className="text-[10px] text-gray-500 font-bold shrink-0 ml-2">{formatTime(chat.lastMessageAt)}</span>
+                  </div>
+                  <p className="text-xs truncate text-gray-500">{chat.lastMessageText ?? 'No messages yet'}</p>
+                </div>
               </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setDeletingChatId(chat.id); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-400/10"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           ))}
         </div>
       </aside>
 
       {/* ── Main Chat Area ── */}
-      <main className="flex-grow flex flex-col rounded-[3.5rem] shadow-soft-out bg-[#1e1e22] overflow-hidden border border-white/[0.02]">
+      <main className={`flex-col rounded-none md:rounded-[3.5rem] shadow-soft-out bg-[#1e1e22] overflow-hidden border-0 md:border border-white/[0.02] flex-1 ${isRealChat ? 'flex' : 'hidden md:flex'}`}>
         {isRealChat && activeChat ? (
           <>
             {/* Header */}
-            <header className="p-8 flex items-center gap-4 border-b border-white/[0.03]">
+            <header className="p-4 md:p-8 flex items-center gap-4 border-b border-white/[0.03]">
               <button onClick={() => router.push('/pages/user/chat/list')}
                 className="w-10 h-10 rounded-full shadow-soft-out flex items-center justify-center text-gray-500 hover:text-white mr-2">←</button>
               <div className="w-12 h-12 rounded-full shadow-soft-out border-2 border-[#1e1e22] overflow-hidden shrink-0">
@@ -483,17 +521,20 @@ export default function ChatPage() {
             </header>
 
             {/* Messages */}
-            <div className="flex-grow p-10 overflow-y-auto space-y-4 custom-scrollbar bg-[#1c1c20]/30">
+            <div className="flex-grow p-4 md:p-10 overflow-y-auto space-y-4 custom-scrollbar bg-[#1c1c20]/30">
               {messages.length === 0 && (
                 <p className="text-center py-12 text-gray-600 text-xs font-black uppercase tracking-[0.2em]">Say hello! 👋</p>
               )}
-              {messages.map((msg) => {
+              {messages
+                .filter((msg) => !msg.deletedFor.includes(firebaseUser?.uid ?? ''))
+                .map((msg) => {
                 const isOwn = msg.senderId === firebaseUser?.uid;
                 const senderName = activeChat.type === 'group' && !isOwn
                   ? (userCache[msg.senderId]?.username ?? '...')
                   : null;
+                const menuOpen = msgMenu === msg.id;
                 return (
-                  <div key={msg.id} className={`flex flex-col gap-1 max-w-[70%] ${isOwn ? 'items-end ml-auto' : 'items-start'}`}>
+                  <div key={msg.id} className={`group relative flex flex-col gap-1 max-w-[88%] md:max-w-[70%] ${isOwn ? 'items-end ml-auto' : 'items-start'}`}>
                     {senderName && (
                       <span className="text-[10px] text-primary-accent font-bold ml-4">{senderName}</span>
                     )}
@@ -528,9 +569,31 @@ export default function ChatPage() {
                         </div>
                       </a>
                     )}
-                    <span className={`text-[9px] font-bold uppercase ${isOwn ? 'text-primary-accent mr-2' : 'text-gray-600 ml-2'}`}>
-                      {formatTime(msg.createdAt)}
-                    </span>
+                    <div className={`flex items-center gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <span className={`text-[9px] font-bold uppercase ${isOwn ? 'text-primary-accent' : 'text-gray-600'}`}>
+                        {formatTime(msg.createdAt)}
+                      </span>
+                      <button
+                        onClick={() => setMsgMenu(menuOpen ? null : msg.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-white"
+                      >
+                        <MoreVertical size={12} />
+                      </button>
+                    </div>
+                    {menuOpen && (
+                      <div className={`absolute bottom-6 z-10 bg-[#1e1e22] shadow-soft-out rounded-2xl overflow-hidden border border-white/5 min-w-[160px] ${isOwn ? 'right-0' : 'left-0'}`}>
+                        <button onClick={() => handleDeleteMessageForMe(msg.id)}
+                          className="w-full text-left px-4 py-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+                          Delete for me
+                        </button>
+                        {isOwn && (
+                          <button onClick={() => handleDeleteMessageForAll(msg.id)}
+                            className="w-full text-left px-4 py-3 text-xs font-bold text-red-400 hover:bg-red-400/10 transition-colors">
+                            Delete for everyone
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -561,7 +624,7 @@ export default function ChatPage() {
             )}
 
             {/* Input */}
-            <footer className="p-8 pt-2">
+            <footer className="p-3 md:p-8 md:pt-2">
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
               {uploadError && !uploadFile && <p className="text-[10px] text-red-400 font-bold mb-2 ml-4">{uploadError}</p>}
               <div className="p-2 rounded-[2.5rem] shadow-soft-in flex items-center gap-4 bg-[#1a1a1e]/50">
@@ -602,6 +665,33 @@ export default function ChatPage() {
           </div>
         )}
       </main>
+
+      {/* ── Delete Chat Confirmation ── */}
+      {deletingChatId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+          onClick={() => setDeletingChatId(null)}>
+          <div className="bg-[#1e1e22] rounded-[2rem] shadow-soft-out p-8 max-w-sm w-full space-y-6 border border-white/5"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 rounded-full bg-red-400/10 flex items-center justify-center mx-auto">
+                <Trash2 size={22} className="text-red-400" />
+              </div>
+              <h3 className="font-black text-lg tracking-tight">Delete chat?</h3>
+              <p className="text-xs text-gray-500">The chat will be hidden only for you. Other participants will still see it.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setDeletingChatId(null)}
+                className="flex-1 py-3 rounded-2xl shadow-soft-out text-gray-500 text-sm font-bold hover:text-white transition-all">
+                Cancel
+              </button>
+              <button onClick={() => handleDeleteChat(deletingChatId)}
+                className="flex-1 py-3 rounded-2xl bg-red-500 text-white text-sm font-bold hover:brightness-110 transition-all">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
