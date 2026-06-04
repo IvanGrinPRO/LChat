@@ -3,13 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/app/lib/firebase';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '@/app/lib/firebase';
 import { AuthProvider, useAuth } from '@/app/lib/AuthContext';
 
-function LoginForm() {
+function SignupForm() {
   const router = useRouter();
   const { firebaseUser, loading } = useAuth();
+  const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -26,14 +28,28 @@ function LoginForm() {
     setError('');
     setSubmitting(true);
     try {
-      const { user } = await signInWithEmailAndPassword(auth, email, password);
-      router.push(user.emailVerified ? '/pages/user/chat/list' : '/pages/verify-email');
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, 'users', user.uid), {
+        username: userName,
+        usernameLower: userName.toLowerCase(),
+        email: user.email ?? email.toLowerCase(),
+        bio: null,
+        avatarUrl: `https://i.pravatar.cc/150?u=${user.uid}`,
+        isOnline: false,
+        fcmTokens: [],
+        createdAt: serverTimestamp(),
+        lastSeen: serverTimestamp(),
+      });
+      await sendEmailVerification(user);
+      router.push('/pages/verify-email');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
       setError(
-        code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found'
-          ? 'Invalid email or password'
-          : 'Sign in failed. Please try again.'
+        code === 'auth/email-already-in-use'
+          ? 'Email already in use'
+          : code === 'auth/weak-password'
+          ? 'Password must be at least 6 characters'
+          : 'Registration failed. Please try again.'
       );
     } finally {
       setSubmitting(false);
@@ -65,11 +81,11 @@ function LoginForm() {
       </div>
 
       <div className="w-full max-w-[400px] flex flex-col items-center">
-        <h1 className="text-3xl font-semibold mb-2">Yooo, welcome back!</h1>
+        <h1 className="text-3xl font-semibold mb-2">Create your account</h1>
         <p className="text-sm text-gray-400 mb-8">
-          First time here?{' '}
-          <Link href="/pages/signup" className="text-white hover:underline font-medium">
-            Sign up for free
+          Already have one?{' '}
+          <Link href="/pages/login" className="text-white hover:underline font-medium">
+            Sign in
           </Link>
         </p>
 
@@ -81,6 +97,15 @@ function LoginForm() {
 
         <form onSubmit={handleSubmit} className="w-full space-y-4">
           <input
+            type="text"
+            placeholder="Username"
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+            required
+            minLength={2}
+            className="w-full bg-[#1E1E1E] border border-white/5 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-white/20 transition-all placeholder:text-gray-600"
+          />
+          <input
             type="email"
             placeholder="Your email"
             value={email}
@@ -90,10 +115,11 @@ function LoginForm() {
           />
           <input
             type="password"
-            placeholder="••••••••"
+            placeholder="Password (min. 6 chars)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            minLength={6}
             className="w-full bg-[#1E1E1E] border border-white/5 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-white/20 transition-all placeholder:text-gray-600"
           />
           <button
@@ -101,7 +127,7 @@ function LoginForm() {
             disabled={submitting}
             className="w-full bg-white text-black font-semibold py-3 rounded-lg hover:bg-gray-200 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {submitting ? 'Signing in...' : 'Sign in'}
+            {submitting ? 'Creating account...' : 'Sign up'}
           </button>
         </form>
 
@@ -116,10 +142,10 @@ function LoginForm() {
   );
 }
 
-export default function LoginPage() {
+export default function SignupPage() {
   return (
     <AuthProvider>
-      <LoginForm />
+      <SignupForm />
     </AuthProvider>
   );
 }

@@ -1,175 +1,317 @@
 'use client';
-import React, { useState } from 'react';
 
-export default function ProfileSettings({ params }: { params: { id: string } }) {
-  
-  const id = React.use(params).id;
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/app/lib/firebase';
+import AvatarImage from '@/app/components/AvatarImage';
+import { useAuth } from '@/app/lib/AuthContext';
+
+export default function SettingsPage() {
+  const router = useRouter();
+  const { firebaseUser, user, loading } = useAuth();
+
   const [activeTab, setActiveTab] = useState('General');
-  
-  const [isOnline, setIsOnline] = useState(true);
-  const [is2FA, setIs2FA] = useState(true);
+  const [username, setUsername] = useState('');
+  const [isOnline, setIsOnline] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!loading && !firebaseUser) router.push('/pages/login');
+  }, [firebaseUser, loading, router]);
+
+  useEffect(() => {
+    if (user) {
+      setUsername(user.username);
+      setIsOnline(user.isOnline);
+      setAvatarUrl(user.avatarUrl);
+    }
+  }, [user]);
+
+  function flash(msg: string, isError = false) {
+    if (isError) { setError(msg); setSuccess(''); }
+    else { setSuccess(msg); setError(''); }
+    setTimeout(() => { setError(''); setSuccess(''); }, 3500);
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !firebaseUser) return;
+    if (file.size > 5 * 1024 * 1024) { flash('Avatar must be under 5 MB', true); return; }
+    setAvatarUploading(true);
+    try {
+      const storageRef = ref(storage, `avatars/${firebaseUser.uid}/avatar`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      await updateDoc(doc(db, 'users', firebaseUser.uid), { avatarUrl: url });
+      setAvatarUrl(url);
+      flash('Avatar updated');
+    } catch (err) {
+      console.error('Avatar upload error:', err);
+      flash('Failed to upload avatar', true);
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = '';
+    }
+  }
+
+  async function handleSaveGeneral() {
+    if (!firebaseUser || !username.trim()) return;
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'users', firebaseUser.uid), {
+        username: username.trim(),
+        usernameLower: username.trim().toLowerCase(),
+        isOnline,
+        updatedAt: serverTimestamp(),
+      });
+      flash('Changes saved');
+    } catch (err) {
+      console.error('Save general error:', err);
+      flash('Failed to save changes', true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveSecurity() {
+    if (!firebaseUser?.email) return;
+    if (!currentPassword || !newPassword) { flash('Fill in all fields', true); return; }
+    if (newPassword.length < 6) { flash('New password must be at least 6 characters', true); return; }
+    if (newPassword !== confirmPassword) { flash('Passwords do not match', true); return; }
+    setSaving(true);
+    try {
+      const credential = EmailAuthProvider.credential(firebaseUser.email, currentPassword);
+      await reauthenticateWithCredential(firebaseUser, credential);
+      await updatePassword(firebaseUser, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      flash('Password changed successfully');
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      flash(
+        code === 'auth/wrong-password' || code === 'auth/invalid-credential'
+          ? 'Current password is incorrect'
+          : 'Failed to change password',
+        true
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#1a1a1e] flex items-center justify-center">
+        <span className="text-gray-600 text-xs font-black tracking-[0.3em] uppercase animate-pulse">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#1a1a1e] flex flex-col items-center justify-center gap-4">
+        <span className="text-gray-500 text-xs font-black tracking-[0.2em] uppercase">Failed to load profile</span>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-6 py-3 rounded-2xl shadow-soft-out text-sm text-gray-400 hover:text-white transition-all"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#1a1a1e] flex items-start justify-center p-10 text-white font-sans">
       <div className="w-full max-w-6xl grid grid-cols-[300px_1fr] gap-12">
-        
-        <aside className="space-y-8">
-          <div className="p-8 rounded-[2.5rem] shadow-soft-out flex flex-col items-center">
-            <div className="w-28 h-28 rounded-full shadow-soft-out border-[6px] border-[#1e1e22] overflow-hidden mb-4">
-              <img src="https://i.pravatar.cc/150?u=2" alt="Avatar" className="w-full h-full object-cover" />
+
+        {/* ── Sidebar ── */}
+        <aside className="space-y-8 sticky top-10">
+          <div className="p-8 rounded-[2.5rem] shadow-soft-out flex flex-col items-center gap-1">
+            <div
+              className="relative w-28 h-28 rounded-full shadow-soft-out border-[6px] border-[#1e1e22] overflow-hidden mb-3 cursor-pointer group"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {avatarUploading ? (
+                <div className="w-full h-full bg-[#1e1e22] flex items-center justify-center">
+                  <span className="text-[8px] text-gray-500 font-black uppercase tracking-widest animate-pulse">Uploading…</span>
+                </div>
+              ) : (
+                <>
+                  <AvatarImage src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em]">Change</span>
+                  </div>
+                </>
+              )}
             </div>
-            <h2 className="text-xl font-bold tracking-tight text-white">Vanya Dev</h2>
-            <span className="text-[10px] text-primary-accent font-black tracking-[0.2em] mt-1 uppercase">Test Plan</span>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+            <h2 className="text-base font-bold tracking-tight">{user.username}</h2>
+            <span className="text-[10px] text-gray-500 font-bold truncate max-w-full">{user.email}</span>
+            <div className="flex items-center gap-1.5 mt-1">
+              <div className={`w-2 h-2 rounded-full ${user.isOnline ? 'bg-green-500 shadow-[0_0_6px_#22c55e]' : 'bg-gray-600'}`} />
+              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+                {user.isOnline ? 'Online' : 'Offline'}
+              </span>
+            </div>
           </div>
 
-          <div className="p-4 rounded-[2rem] shadow-soft-in space-y-1">
-            {['General', 'Security', 'Billing'].map((item) => (
-              <button 
-                key={item} 
-                onClick={() => setActiveTab(item)}
-                className={`w-full text-left px-6 py-4 rounded-xl text-sm font-medium transition-all ${
-                  activeTab === item ? 'bg-primary-accent text-white shadow-lg' : 'text-gray-500 hover:text-white'
+          <nav className="p-4 rounded-[2rem] shadow-soft-in space-y-1">
+            {['General', 'Security'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => { setActiveTab(tab); setError(''); setSuccess(''); }}
+                className={`w-full text-left px-6 py-4 rounded-xl text-sm font-bold transition-all ${
+                  activeTab === tab
+                    ? 'bg-primary-accent text-white shadow-lg shadow-primary-accent/20'
+                    : 'text-gray-500 hover:text-white'
                 }`}
               >
-                {item}
+                {tab}
               </button>
             ))}
-          </div>
+          </nav>
         </aside>
 
+        {/* ── Main ── */}
         <div className="space-y-8">
-          <div className="flex justify-between items-end px-4">
-            <div>
-              <h1 className="text-4xl font-black tracking-tighter uppercase">{activeTab}</h1>
-              <p className="text-gray-500 text-xs font-bold tracking-widest mt-1 uppercase">User ID: {id}</p>
-            </div>
-            <button className="px-10 py-4 rounded-2xl bg-[#1e1e22] shadow-soft-out text-primary-accent font-bold text-sm hover:shadow-soft-in transition-all">
-              DISCARD
-            </button>
+          <div className="px-4">
+            <h1 className="text-4xl font-black tracking-tighter uppercase italic">{activeTab}</h1>
+            <p className="text-gray-600 text-[10px] font-black tracking-[0.2em] mt-1 uppercase truncate">
+              {firebaseUser?.uid}
+            </p>
           </div>
 
           <div className="p-2 rounded-[3.5rem] shadow-soft-out bg-[#1e1e22]">
-            <div className="p-10 space-y-10">
-              
+            <div className="p-10 space-y-8">
+
+              {/* ── General Tab ── */}
               {activeTab === 'General' && (
                 <>
-                  <section className="grid grid-cols-2 gap-10">
+                  <section className="grid grid-cols-2 gap-8">
                     <div className="space-y-3">
                       <label className="text-[10px] text-gray-500 font-black tracking-[0.2em] ml-4 uppercase">Username</label>
                       <div className="p-1 rounded-2xl shadow-soft-in">
-                        <input type="text" className="w-full bg-transparent p-4 text-sm outline-none" defaultValue="vanya_web" />
+                        <input
+                          type="text"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          className="w-full bg-transparent p-4 text-sm outline-none"
+                        />
                       </div>
                     </div>
                     <div className="space-y-3">
-                      <label className="text-[10px] text-gray-500 font-black tracking-[0.2em] ml-4 uppercase">Public Email</label>
+                      <label className="text-[10px] text-gray-500 font-black tracking-[0.2em] ml-4 uppercase">Email</label>
                       <div className="p-1 rounded-2xl shadow-soft-in">
-                        <input type="email" className="w-full bg-transparent p-4 text-sm outline-none" placeholder="hello@vanya.dev" />
+                        <input
+                          type="email"
+                          value={user.email}
+                          readOnly
+                          className="w-full bg-transparent p-4 text-sm outline-none text-gray-500 cursor-not-allowed select-none"
+                        />
                       </div>
                     </div>
                   </section>
-                  <section className="space-y-3">
-                    <label className="text-[10px] text-gray-500 font-black tracking-[0.2em] ml-4 uppercase">Bio Description</label>
-                    <div className="p-2 rounded-[2rem] shadow-soft-in">
-                      <textarea rows={3} className="w-full bg-transparent p-4 text-sm outline-none resize-none" placeholder="I'm a web developer..." />
-                    </div>
-                  </section>
-                </>
-              )}
 
-              {activeTab === 'Security' && (
-                <>
-                  <section className="space-y-6">
-                    <div className="space-y-3">
-                      <label className="text-[10px] text-gray-500 font-black tracking-[0.2em] ml-4 uppercase">Change Password</label>
-                      <div className="p-1 rounded-2xl shadow-soft-in mb-4">
-                        <input type="password" placeholder="Current Password" className="w-full bg-transparent p-4 text-sm outline-none" />
-                      </div>
-                      <div className="p-1 rounded-2xl shadow-soft-in">
-                        <input type="password" placeholder="New Password" className="w-full bg-transparent p-4 text-sm outline-none" />
-                      </div>
+                  <section className="p-8 rounded-3xl shadow-soft-in bg-[#1c1c20]/50 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold">Show Online Status</h4>
+                      <p className="text-[10px] text-gray-500 mt-1">Others will see when you are active</p>
                     </div>
-                    
-                    <div className="p-8 rounded-3xl shadow-soft-in bg-[#1c1c20]/50 flex items-center justify-between">
-                      <div>
-                        <h4 className="text-sm font-bold italic">Two-Factor Authentication</h4>
-                        <p className="text-[10px] text-gray-500 mt-1">Add an extra layer of security to your account</p>
-                      </div>
-                      <button 
-                        onClick={() => setIs2FA(!is2FA)}
-                        className="w-16 h-8 rounded-full shadow-soft-out p-1 flex items-center bg-[#1e1e22] transition-all"
-                      >
-                        <div className={`w-6 h-6 rounded-full transition-all duration-300 ${
-                          is2FA 
-                          ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)] ml-auto' 
+                    <button
+                      onClick={() => setIsOnline(!isOnline)}
+                      className="w-16 h-8 rounded-full shadow-soft-out p-1 flex items-center bg-[#1a1a1e] transition-all"
+                    >
+                      <div className={`w-6 h-6 rounded-full transition-all duration-300 ${
+                        isOnline
+                          ? 'bg-primary-accent shadow-md shadow-primary-accent/40 ml-auto'
                           : 'bg-gray-700 ml-0'
-                        }`} />
-                      </button>
-                    </div>
-
-                    <div className="p-6 rounded-2xl border border-primary-accent/20 bg-primary-accent/5">
-                      <h4 className="text-xs font-bold text-primary-accent uppercase tracking-widest mb-2">Sessions</h4>
-                      <p className="text-[10px] text-gray-400">You are currently logged in on 2 devices. <span className="text-primary-accent underline cursor-pointer ml-1">Log out from all</span></p>
-                    </div>
+                      }`} />
+                    </button>
                   </section>
                 </>
               )}
 
-              {activeTab === 'Billing' && (
-                <>
-                  <section className="space-y-8">
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="p-8 rounded-[2rem] shadow-soft-in bg-gradient-to-br from-[#222226] to-[#1a1a1e]">
-                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Active Plan</p>
-                        <h3 className="text-2xl font-black mt-2 text-primary-accent italic tracking-tighter">TEST PLAN</h3>
-                        <p className="text-[10px] text-gray-400 mt-4">$0.00 / month</p>
-                      </div>
-                      <div className="p-8 rounded-[2rem] shadow-soft-out flex flex-col justify-center border border-white/5">
-                        <p className="text-[10px] text-gray-500 font-bold uppercase">Next Payment</p>
-                        <h3 className="text-xl font-bold mt-1 text-white">May 20, 2026</h3>
-                      </div>
+              {/* ── Security Tab ── */}
+              {activeTab === 'Security' && (
+                <section className="space-y-5">
+                  <div className="space-y-3">
+                    <label className="text-[10px] text-gray-500 font-black tracking-[0.2em] ml-4 uppercase">Current Password</label>
+                    <div className="p-1 rounded-2xl shadow-soft-in">
+                      <input
+                        type="password"
+                        placeholder="••••••••"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full bg-transparent p-4 text-sm outline-none"
+                      />
                     </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] text-gray-500 font-black tracking-[0.2em] ml-4 uppercase">Payment Method</label>
-                      <div className="p-6 rounded-2xl shadow-soft-in flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-8 bg-[#252529] rounded shadow-inner flex items-center justify-center text-[8px] font-bold">VISA</div>
-                          <span className="text-sm font-medium">•••• •••• •••• 4242</span>
-                        </div>
-                        <button className="text-[10px] font-black text-primary-accent hover:underline">UPDATE</button>
-                      </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] text-gray-500 font-black tracking-[0.2em] ml-4 uppercase">New Password</label>
+                    <div className="p-1 rounded-2xl shadow-soft-in">
+                      <input
+                        type="password"
+                        placeholder="min. 6 characters"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full bg-transparent p-4 text-sm outline-none"
+                      />
                     </div>
-                  </section>
-                </>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] text-gray-500 font-black tracking-[0.2em] ml-4 uppercase">Confirm New Password</label>
+                    <div className="p-1 rounded-2xl shadow-soft-in">
+                      <input
+                        type="password"
+                        placeholder="repeat new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSaveSecurity()}
+                        className="w-full bg-transparent p-4 text-sm outline-none"
+                      />
+                    </div>
+                  </div>
+                </section>
               )}
 
-              <section className="flex items-center justify-between p-8 rounded-3xl shadow-soft-in bg-[#1c1c20]/50">
-                <div>
-                  <h4 className="text-sm font-bold">Show Online Status</h4>
-                  <p className="text-[10px] text-gray-500 mt-1">Others will see when you are active</p>
-                </div>
-                <button 
-                  onClick={() => setIsOnline(!isOnline)}
-                  className="w-16 h-8 rounded-full shadow-soft-out p-1 flex items-center transition-all bg-[#1e1e22]"
+              {/* ── Feedback ── */}
+              {error && (
+                <p className="text-xs text-red-400 font-bold ml-2 animate-pulse">{error}</p>
+              )}
+              {success && (
+                <p className="text-xs text-green-400 font-bold ml-2">{success}</p>
+              )}
+
+              {/* ── Footer ── */}
+              <footer className="pt-2 flex gap-4">
+                <button
+                  onClick={activeTab === 'General' ? handleSaveGeneral : handleSaveSecurity}
+                  disabled={saving}
+                  className="flex-1 bg-primary-accent py-5 rounded-[2rem] font-bold text-sm shadow-lg shadow-primary-accent/20 hover:brightness-110 active:scale-[0.98] transition-all tracking-widest uppercase disabled:opacity-50"
                 >
-                  <div className={`w-6 h-6 rounded-full transition-all duration-300 ${
-                    isOnline 
-                    ? 'bg-primary-accent shadow-md shadow-primary-accent/40 ml-auto' 
-                    : 'bg-gray-700 ml-0'
-                  }`} />
-                </button>
-              </section>
-
-              <footer className="pt-4 flex gap-4">
-                <button className="flex-1 bg-primary-accent py-5 rounded-[2rem] font-bold text-sm shadow-lg shadow-primary-accent/20 hover:brightness-110 active:scale-[0.98] transition-all tracking-widest">
-                  SAVE {activeTab.toUpperCase()}
+                  {saving ? 'Saving…' : `Save ${activeTab}`}
                 </button>
               </footer>
 
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

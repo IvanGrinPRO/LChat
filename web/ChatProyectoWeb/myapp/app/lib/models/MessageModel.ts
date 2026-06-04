@@ -1,8 +1,2 @@
-export interface Message{
-    id : number
-    text: string,
-    sended_at : Date,
-    sendedId : number
-    chatId : number
-    
-}
+export type { Message, NewMessage, MessageType } from "./ChatModel";
+export { messageConverter } from "./ChatModel";
